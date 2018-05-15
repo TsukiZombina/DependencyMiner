@@ -43,20 +43,121 @@ public:
     void extraction() {
         for (int i = 0; i < ncol; ++i) {
             if (std::unordered_set<std::string>(data[i].begin(), data[i].end()).size() == data[i].size()) {
-                unique_cols.push_back(i);
                 for (int j = 0; j < ncol; ++j) {
                     if (j != i) {
                         FD.push_back(std::vector<int>({ i, j }));
                     }
                 }
+            } else {
+                non_unique_cols.push_back(i);
             }
         }
+        for (int i : non_unique_cols) {
+            findLHSs(i);
+        }
         // foreach RHS\in R do FD.push_back({K->RHS''|k\in findLHSs(RHS,r)})
+    }
+    void findLHSs(int i) {
+        std::vector<int> seeds;
+        seeds.push_back(non_unique_cols.at(0) == i ? non_unique_cols.at(1) : non_unique_cols.at(0)); // should random?
+        while (!seeds.empty) {
+            auto node = pickSeed();
+            while (node) {
+                if (visited(node)) {
+                    if (isCandidate(node) {
+                        if (isDependency(node)) {
+                            if (isMinimal(node)) {
+                                //FD.push()
+                            }
+                        } else {
+                            if (isMaximal(node)) {
+                                //maxNonDeps.push_back(node)
+                            }
+                        }
+                        updateDependencyType(node);
+                    }
+                } else {
+                    inferCategory(node);
+                    if (category(node) == null) {
+                        computePartitions(node, i);
+                    }
+                }
+                node = pickNextNode(node);
+            }
+            seeds = generateNextSeeds();
+        }
+    }
+
+    Node pickNextNode(Node node) {
+        if (node.isCandidateMinimalDep) {
+            auto S = uncheckedSubsets(node);
+            auto P = prunedSets(node);
+            S = S - P;
+            if (S.empty()) {
+                //FD.push_back()
+            } else {
+                nextNode = S.at(0); // should random
+                trace.push(node);
+                return nextNode;
+            }
+        } else if (node.isCandidateMaximalNonDep) {
+            auto S = uncheckedSupersets(node);
+            auto P = prunedSuperSets(node);
+            S = S - P;
+            if (S.empty()) {
+                //maxNonDeps.push_back(node)
+            } else {
+                nextNode = S.at(0); // should random
+                trace.push(node);
+                return nextNode;
+            }
+        } else {
+            return trace.nextNode;
+        }
+    }
+
+    Seeds generateNextSeeds() {
+        auto seeds;
+        auto newSeeds;
+        for (auto maxNonDep : maxNonDeps) {
+            complement = maxNonDeps - maxNonDep;
+            if (seeds.empty()) {
+                auto emptyColumns = Bitset(| maxNonDep | );
+                for (auto setBitIndex : complement) {
+                    seeds.push_back(emptyColumns.setCopy(setBitIndex);
+                }
+            } else {
+                for (dep : seeds) {
+                    for (setBitIndex : complement) {
+                        newSeeds.push_back(dep.setCopy(setBitIndex));
+                    }
+                }
+                minimizedNewDeps = minimize newSeeds;
+                seeds = {};
+                for (newSeed : minimizedNewDeps) {
+                    seeds.push_back(newSeed);
+                }
+                newSeeds = {};
+            }
+        }
+        seeds = seeds - minDeps;
+        return seeds;
     }
 private:
     std::vector<std::string>* data;
     int size;
     int ncol;
     std::vector<std::vector<int>> FD;
-    std::vector<int> unique_cols;
+    std::vector<int> non_unique_cols;
+
+    struct Node {
+        std::vector<int> LHS;
+        bool isVisited;
+        bool isCandidate;
+        bool isDependency;
+        bool isMinimal;
+        bool isMaximal;
+        bool isCandidateMinimalDep;
+        bool isCandidateMaximalNonDep;
+    };
 };
