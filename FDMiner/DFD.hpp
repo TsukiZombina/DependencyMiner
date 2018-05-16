@@ -6,6 +6,44 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+#include <set>
+
+void subset(int n, std::set<int>& S, int depth = -1) {
+    if (depth == -1) {
+        depth = 32;
+    }
+    if (depth == 0 || n == 0)
+        return;
+    int nn = n;
+    while (nn != 0) {
+        int firstOne = nn & ~(nn - 1);
+        nn = nn & ~firstOne;
+        S.insert(n & ~firstOne);
+        subset(n & ~firstOne, S, depth - 1);
+    }
+}
+
+void superset(int n, std::set<int>& S, int tabu, int depth = -1, int mask = -1) {
+    if (depth == -1) {
+        depth = 32;
+    }
+    if (mask == -1) {
+        mask = 1;
+        while (mask < n) mask <<= 1;
+        mask -= 1;
+    }
+    if (depth == 0 || (n | tabu) == mask) return;
+    int nn = mask & ~n;
+    while (nn != 0) {
+        int firstOne = nn & ~(nn - 1);
+        nn = nn & ~firstOne;
+        if (firstOne != tabu) {
+            S.insert(n | firstOne);
+            superset(n | firstOne, S, tabu, mask, depth - 1);
+        }
+    }
+}
+
 class DFD {
 public:
     DFD(std::string path, int size = -1, int ncol = -1) : size(size), ncol(ncol) {
