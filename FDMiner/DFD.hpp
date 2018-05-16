@@ -115,6 +115,7 @@ private:
         int nn = n;
         while (nn != 0) {
             int firstOne = nn & ~(nn - 1);
+            if ((n & ~firstOne) == 0) break;
             nn = nn & ~firstOne;
             S.insert(n & ~firstOne);
             subset(n & ~firstOne, S, depth - 1);
@@ -130,7 +131,7 @@ private:
         while (nn != 0) {
             int firstOne = nn & ~(nn - 1);
             nn = nn & ~firstOne;
-            if ((firstOne & tabu) != 0) {
+            if ((firstOne & tabu) == 0) {
                 S.insert(n | firstOne);
                 superset(n | firstOne, S, tabu, mask, depth - 1);
             }
@@ -209,9 +210,11 @@ private:
         if (node.isCandidateMinDep) {
             std::set<NodeIndex> S;
             subset(nodeID, S, 1); // Not sure whether I understand it correctly
-            for (auto s : S) {
-                if (!NodeSet.at(s).isNonDep) {
-                    S.erase(s);
+            for (auto iter = S.begin(); iter != S.end();) {
+                if (NodeSet.at(*iter).isVisited && NodeSet.at(*iter).isNonDep) {
+                    S.erase(iter++);
+                } else {
+                    ++iter;
                 }
             }
             if (S.empty()) {
@@ -225,9 +228,11 @@ private:
         } else if (node.isCandidateMaxNonDep) {
             std::set<NodeIndex> S;
             superset(nodeID, S, tabu_for_unique_cols | BITMAP.at(current_rhs), (1 << ncol) - 1, 1); // Not sure whether I understand it correctly
-            for (auto s : S) {
-                if (!NodeSet.at(s).isDep) {
-                    S.erase(s);
+            for (auto iter = S.begin(); iter != S.end();) {
+                if (NodeSet.at(*iter).isVisited && NodeSet.at(*iter).isDep) {
+                    S.erase(iter++);
+                } else {
+                    ++iter;
                 }
             }
             if (S.empty()) {
@@ -261,7 +266,7 @@ private:
                 for (auto dep : seeds) {
                     for (ColIndex i = 0; i < ncol; ++i) {
                         if (complement & BITMAP.at(i)) {
-                            seeds.insert(dep | BITMAP.at(i));
+                            newSeeds.insert(dep | BITMAP.at(i));
                         }
                     }
                 }
@@ -292,27 +297,27 @@ private:
                 }
             }
         }
-        if (isFD) { // could do more?
-            std::set<NodeIndex> S;
-            superset(nodeID, S, BITMAP.at(current_rhs) | tabu_for_unique_cols, (1 << ncol) - 1);
-            for (int s : S) {
-                auto& node = NodeSet.at(s);
-                node.isVisited = true;
-                node.isDep = true;
-                node.isCandidateMinDep = false;
-                node.isCandidateMaxNonDep = false;
-            }
-        } else {
-            std::set<NodeIndex> S;
-            subset(nodeID, S);
-            for (int s : S) {
-                auto& node = NodeSet.at(s);
-                node.isVisited = true;
-                node.isNonDep = true;
-                node.isCandidateMinDep = false;
-                node.isCandidateMaxNonDep = false;
-            }
-        }
+        //if (isFD) { // could do more?
+        //    std::set<NodeIndex> S;
+        //    superset(nodeID, S, BITMAP.at(current_rhs) | tabu_for_unique_cols, (1 << ncol) - 1);
+        //    for (int s : S) {
+        //        auto& node = NodeSet.at(s);
+        //        node.isVisited = true;
+        //        node.isDep = true;
+        //        node.isCandidateMinDep = false;
+        //        node.isCandidateMaxNonDep = false;
+        //    }
+        //} else {
+        //    std::set<NodeIndex> S;
+        //    subset(nodeID, S);
+        //    for (int s : S) {
+        //        auto& node = NodeSet.at(s);
+        //        node.isVisited = true;
+        //        node.isNonDep = true;
+        //        node.isCandidateMinDep = false;
+        //        node.isCandidateMaxNonDep = false;
+        //    }
+        //}
         return isFD;
     }
 
@@ -320,7 +325,9 @@ private:
         auto& node = NodeSet.at(nodeID);
         node.isVisited = true;
         bool check_result = checkFD(nodeID);
+        node.isDep = check_result;
         node.isCandidateMinDep = check_result;
+        node.isNonDep = !check_result;
         node.isCandidateMaxNonDep = !check_result;
     }
 };
