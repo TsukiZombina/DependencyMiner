@@ -55,6 +55,17 @@ public:
     }
     void output() {
         // sort
+        std::sort(FD.begin(), FD.end(), [](const std::vector<int>& lhs, const std::vector<int>& rhs) -> bool {
+            auto iter1 = lhs.begin();
+            auto iter2 = rhs.begin();
+            while (iter1 != lhs.end() && iter2 != rhs.end()) {
+                if (*iter1 < *iter2) return true;
+                if (*iter1 > *iter2) return false;
+                ++iter1;
+                ++iter2;
+            }
+            return(iter2 != rhs.end()); // lhs shorter return true
+        });
         for (auto fd : FD) {
             std::string result;
             for (auto x : fd) {
@@ -174,33 +185,43 @@ private:
     void findLHSs() {
         if (non_unique_cols.size() < 2) return;
         std::set<NodeIndex> seeds;
-        NodeIndex firstseed = non_unique_cols.at(0) == current_rhs ? non_unique_cols.at(1) : non_unique_cols.at(0); // should random?
-        seeds.insert(BITMAP.at(firstseed));
-        while (!seeds.empty()) {
-            int nodeID = *seeds.begin(); // should random?
-            while (nodeID != -1) {
-                auto& node = NodeSet.at(nodeID);
-                if (node.isVisited) {
-                    if (node.isCandidateMinDep || node.isCandidateMaxNonDep) {
-                        if (node.isDep) {
-                            if (node.isMinDep) {
-                                minDeps.push_back(nodeID);
+        //NodeIndex firstseed = non_unique_cols.at(0) == current_rhs ? non_unique_cols.at(1) : non_unique_cols.at(0); // should random?
+        //seeds.insert(BITMAP.at(firstseed));
+        NodeIndex firstseed = ((1 << ncol) - 1) & ~(tabu_for_unique_cols | BITMAP.at(current_rhs));
+        seeds.insert(firstseed);
+        for (auto col : non_unique_cols) {
+            if (col == current_rhs) continue;
+            seeds.insert(BITMAP.at(col));
+            while (!seeds.empty()) {
+                int nodeID = *seeds.begin(); // should random?
+                while (nodeID != -1) {
+                    auto& node = NodeSet.at(nodeID);
+                    if (node.isVisited) {
+                        if (node.isCandidateMinDep || node.isCandidateMaxNonDep) {
+                            if (node.isDep) {
+                                if (node.isMinDep) {
+                                    node.isCandidateMinDep = false;
+                                    minDeps.push_back(nodeID);
+                                }
+                            } else {
+                                if (node.isMaxNonDep) {
+                                    node.isCandidateMaxNonDep = false;
+                                    maxNonDeps.push_back(nodeID);
+                                }
                             }
-                        } else {
-                            if (node.isMaxNonDep) {
-                                maxNonDeps.push_back(nodeID);
-                            }
+                            //updateDependencyType(node);
                         }
-                        //updateDependencyType(node);
+                    } else {
+                        if (!inferCategory(nodeID)) {
+                            computePartition(nodeID);
+                        }
                     }
-                } else {
-                    if (!inferCategory(nodeID)) {
-                        computePartition(nodeID);
-                    }
+                    nodeID = pickNextNode(nodeID);
                 }
-                nodeID = pickNextNode(nodeID);
+                seeds = generateNextSeeds();
+                //auto tmp = generateNextSeeds();
+                //seeds.insert(tmp.begin(), tmp.end());
             }
-            seeds = generateNextSeeds();
         }
     }
 
@@ -225,12 +246,19 @@ private:
             if (S.empty()) {
                 if (node.isCandidateMinDep) {
                     node.isMinDep = true;
+                    node.isCandidateMinDep = false;
                     minDeps.push_back(nodeID);
                 }
             } else {
-                NodeIndex nextNode = *S.begin(); // should random
+                //NodeIndex nextNode = *S.begin(); // should random
+                int idx = rand() % S.size();
+                auto iter = S.begin();
+                while(idx--) {
+                    ++iter;
+                }
                 trace.push(nodeID);
-                return nextNode;
+                //return nextNode;
+                return *iter;
             }
         } else if (node.isCandidateMaxNonDep) {
             std::set<NodeIndex> S;
@@ -251,6 +279,7 @@ private:
             if (S.empty()) {
                 if (node.isCandidateMaxNonDep) {
                     node.isMaxNonDep = true;
+                    node.isCandidateMaxNonDep = false;
                     maxNonDeps.push_back(nodeID);
                 }
             } else {
