@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <unordered_set>
+#include <map>
 #include <fstream>
 #include <iostream>
 #include <algorithm>
@@ -142,6 +143,24 @@ public:
         }
         seeds = seeds - minDeps;
         return seeds;
+    }
+
+    bool checkFD(std::vector<int>& lhs, int rhs) {
+        std::map<std::string, std::string> dict;
+        for (int i = 0; i < size; ++i) {
+            std::string l;
+            for (auto j : lhs) {
+                l += data[j].at(i);
+            }
+            auto iter = dict.find(l);
+            if (iter == dict.end()) {
+                dict.insert(std::pair<std::string, std::string>(l, data[rhs].at(i)));
+            } else {
+                if (data[rhs].at(i) != iter->second)
+                    return false;
+            }
+        }
+        return true;
     }
 private:
     std::vector<std::string>* data;
