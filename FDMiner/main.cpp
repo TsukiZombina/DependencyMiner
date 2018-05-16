@@ -6,6 +6,16 @@
 #include <iostream>
 #include <vector>
 
+void print_partition(TANE::Partition& p) {
+    for (auto e_class: p) {
+        std::cout << e_class.first << ": ";
+        for (auto ridx: e_class.second) {
+            std::cout << ridx << " ";
+        }
+        std::cout << "\n";
+    }
+}
+
 void test_generate_next_level() {
     TANE t;
     std::vector<HSet> tmp;
@@ -38,14 +48,31 @@ void test_partition_trivial() {
     for (int i = 0; i < t.ncol; ++i) {
         std::cout << "*********************** Col " << i << " *************************\n";
         auto p = t.compute_partitions(i);
-        for (auto e_class: p) {
-            std::cout << e_class.first << ": ";
-            for (auto ridx: e_class.second) {
-                std::cout << ridx << " ";
-            }
-            std::cout << "\n";
-        }
+        print_partition(p);
     }
+}
+
+void test_partition_product() {
+    std::string path = "./data/test_data.txt";
+    TANE t;
+    t.read_data(path);
+    auto p1 = t.compute_partitions(1);
+    auto p2 = t.compute_partitions(2);
+    auto p12 = t.multiply_partitions(p1, p2);
+    std::cout << "************************* partition using 1&2 **************************\n";
+    print_partition(p12);
+
+    auto p3 = t.compute_partitions(3);
+    std::cout << "************************* partition using 3 **************************\n";
+    print_partition(p3);
+    auto p4 = t.compute_partitions(4);
+    auto p34 = t.multiply_partitions(p3, p4);
+    std::cout << "************************* partition using 3&4 **************************\n";
+    print_partition(p34);
+
+    auto p1234 = t.multiply_partitions(p12, p34);
+    std::cout << "************************* partition using 1&2&3&4 **************************\n";
+    print_partition(p1234);
 }
 
 void test_Hset() {
@@ -59,7 +86,7 @@ void test_Hset() {
 }
 
 int main() {
-    test_partition_trivial();
+    test_partition_product();
     system("pause");
     return 0;
 }

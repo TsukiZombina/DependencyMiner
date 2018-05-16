@@ -11,7 +11,10 @@
 
 class TANE {
 public:
+  using Partition = std::unordered_map<int, std::vector<int>>;
+
   std::vector<std::vector<int>> data;
+  std::vector<int> T;
 
   int nrow;
   int ncol;
@@ -23,6 +26,7 @@ public:
     data = std::move(r.data);
     nrow = r.nrow;
     ncol = r.ncol;
+    T.resize(nrow);
   }
 
   std::vector<HSet> generate_next_level(std::vector<HSet>& old_level) {
@@ -51,8 +55,8 @@ public:
   }
 
   // compute partition with respoect to a single column
-  std::unordered_map<int, std::vector<int>> compute_partitions(int col) {
-    std::unordered_map<int, std::vector<int>> ret;
+  Partition compute_partitions(int col) {
+    Partition ret;
     for (int ridx = 0; ridx < data.size(); ++ridx) {
       auto& row = data[ridx];
       auto p = ret.find(row[col]);
@@ -67,13 +71,45 @@ public:
   }
 
   // strip single-value partition
-  void strip_partition(std::unordered_map<int, std::vector<int>>& partitions) {
+  void strip_partition(Partition& partitions) {
     for (auto iter = partitions.begin(); iter != partitions.end(); ) {
       if (iter->second.size() == 1) {
         iter = partitions.erase(iter);
       } else {
         ++iter;
       }
+    }
+  }
+
+  Partition multiply_partitions(Partition& lhs, Partition& rhs) {
+    Partition ret;
+    Partition S;
+    init_T();
+    for (auto p: lhs) {
+      for (auto ridx: p.second) {
+        T[ridx] = p.first;
+      }
+      S[p.first] = std::vector<int>();
+    }
+    for (auto p: rhs) {
+      for (auto ridx: p.second) {
+        if (T[ridx] != -1) {
+          S[T[ridx]].push_back(ridx);
+        }
+      }
+      for (auto ridx: p.second) {
+        if (S[T[ridx]].size() > 1) {
+          ret[ret.size()] = std::move(S[T[ridx]]);
+        }
+        S[T[ridx]].clear();
+      }
+    }
+    return ret;
+  }
+
+  void init_T() {
+    for (auto iter = T.begin(); iter != T.end(); ++iter) {
+      (*iter) = -1;
     }
   }
 
