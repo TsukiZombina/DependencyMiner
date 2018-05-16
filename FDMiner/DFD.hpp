@@ -194,10 +194,9 @@ private:
                         //updateDependencyType(node);
                     }
                 } else {
-                    inferCategory(nodeID);
-                    //if (category(node) == null) {
-                    //    computePartitions(node, current_rhs);
-                    //}
+                    if (!inferCategory(nodeID)) {
+                        computePartition(nodeID);
+                    }
                 }
                 nodeID = pickNextNode(nodeID);
             }
@@ -211,15 +210,23 @@ private:
             std::set<NodeIndex> S;
             subset(nodeID, S, 1); // Not sure whether I understand it correctly
             for (auto iter = S.begin(); iter != S.end();) {
-                if (NodeSet.at(*iter).isVisited && NodeSet.at(*iter).isNonDep) {
-                    S.erase(iter++);
+                if (NodeSet.at(*iter).isVisited) {
+                    if (NodeSet.at(*iter).isNonDep) {
+                        S.erase(iter++);
+                    } else {
+                        node.isCandidateMinDep = false;
+                        S.clear();
+                        break;
+                    }
                 } else {
                     ++iter;
                 }
             }
             if (S.empty()) {
-                node.isMinDep = true;
-                minDeps.push_back(nodeID);
+                if (node.isCandidateMinDep) {
+                    node.isMinDep = true;
+                    minDeps.push_back(nodeID);
+                }
             } else {
                 NodeIndex nextNode = *S.begin(); // should random
                 trace.push(nodeID);
@@ -229,15 +236,23 @@ private:
             std::set<NodeIndex> S;
             superset(nodeID, S, tabu_for_unique_cols | BITMAP.at(current_rhs), (1 << ncol) - 1, 1); // Not sure whether I understand it correctly
             for (auto iter = S.begin(); iter != S.end();) {
-                if (NodeSet.at(*iter).isVisited && NodeSet.at(*iter).isDep) {
-                    S.erase(iter++);
+                if (NodeSet.at(*iter).isVisited) {
+                    if (NodeSet.at(*iter).isDep) {
+                        S.erase(iter++);
+                    } else {
+                        node.isCandidateMaxNonDep = false;
+                        break;
+                        S.clear();
+                    }
                 } else {
                     ++iter;
                 }
             }
             if (S.empty()) {
-                node.isMaxNonDep = true;
-                maxNonDeps.push_back(nodeID);
+                if (node.isCandidateMaxNonDep) {
+                    node.isMaxNonDep = true;
+                    maxNonDeps.push_back(nodeID);
+                }
             } else {
                 NodeIndex nextNode = *S.begin(); // should random
                 trace.push(nodeID);
@@ -297,31 +312,58 @@ private:
                 }
             }
         }
-        if (isFD) { // could do more?
-            std::set<NodeIndex> S;
-            superset(nodeID, S, BITMAP.at(current_rhs) | tabu_for_unique_cols, (1 << ncol) - 1);
-            for (int s : S) {
-                auto& node = NodeSet.at(s);
+        //if (isFD) { // could do more?
+        //    std::set<NodeIndex> S;
+        //    superset(nodeID, S, BITMAP.at(current_rhs) | tabu_for_unique_cols, (1 << ncol) - 1);
+        //    for (int s : S) {
+        //        auto& node = NodeSet.at(s);
+        //        node.isVisited = true;
+        //        node.isDep = true;
+        //        node.isCandidateMinDep = false;
+        //        node.isCandidateMaxNonDep = false;
+        //    }
+        //} else {
+        //    std::set<NodeIndex> S;
+        //    subset(nodeID, S);
+        //    for (int s : S) {
+        //        auto& node = NodeSet.at(s);
+        //        node.isVisited = true;
+        //        node.isNonDep = true;
+        //        node.isCandidateMinDep = false;
+        //        node.isCandidateMaxNonDep = false;
+        //    }
+        //}
+        return isFD;
+    }
+
+    bool inferCategory(NodeIndex nodeID) {
+        std::set<NodeIndex> S;
+        auto& node = NodeSet.at(nodeID);
+        subset(nodeID, S, 1);
+        for (auto s : S) {
+            if (NodeSet.at(s).isVisited && NodeSet.at(s).isDep) {
                 node.isVisited = true;
                 node.isDep = true;
                 node.isCandidateMinDep = false;
                 node.isCandidateMaxNonDep = false;
-            }
-        } else {
-            std::set<NodeIndex> S;
-            subset(nodeID, S);
-            for (int s : S) {
-                auto& node = NodeSet.at(s);
-                node.isVisited = true;
-                node.isNonDep = true;
-                node.isCandidateMinDep = false;
-                node.isCandidateMaxNonDep = false;
+                return true;
             }
         }
-        return isFD;
+        S.clear();
+        superset(nodeID, S, tabu_for_unique_cols | BITMAP.at(current_rhs), (1 << ncol) - 1, 1);
+        for (auto s : S) {
+            if (NodeSet.at(s).isVisited && NodeSet.at(s).isNonDep) {
+                node.isVisited = true;
+                node.isNonDep = true;
+                node.isCandidateMaxNonDep = false;
+                node.isCandidateMinDep = false;
+                return true;
+            }
+        }
+        return false;
     }
 
-    void inferCategory(NodeIndex nodeID) {
+    void computePartition(NodeIndex nodeID) {
         auto& node = NodeSet.at(nodeID);
         node.isVisited = true;
         bool check_result = checkFD(nodeID);
