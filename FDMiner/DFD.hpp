@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <stack>
 #include <unordered_set>
 #include <map>
 #include <fstream>
@@ -8,41 +9,20 @@
 #include <algorithm>
 #include <set>
 
-void subset(int n, std::set<int>& S, int depth = -1) {
-    if (depth == -1) {
-        depth = 32;
-    }
-    if (depth == 0 || n == 0)
-        return;
-    int nn = n;
-    while (nn != 0) {
-        int firstOne = nn & ~(nn - 1);
-        nn = nn & ~firstOne;
-        S.insert(n & ~firstOne);
-        subset(n & ~firstOne, S, depth - 1);
-    }
-}
+typedef int NodeIndex;
+typedef int ColIndex; 
+const std::vector<ColIndex> BITMAP({ 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768 });
 
-void superset(int n, std::set<int>& S, int tabu, int depth = -1, int mask = -1) {
-    if (depth == -1) {
-        depth = 32;
-    }
-    if (mask == -1) {
-        mask = 1;
-        while (mask < n) mask <<= 1;
-        mask -= 1;
-    }
-    if (depth == 0 || (n | tabu) == mask) return;
-    int nn = mask & ~n;
-    while (nn != 0) {
-        int firstOne = nn & ~(nn - 1);
-        nn = nn & ~firstOne;
-        if (firstOne != tabu) {
-            S.insert(n | firstOne);
-            superset(n | firstOne, S, tabu, mask, depth - 1);
-        }
-    }
-}
+struct Node {
+    //std::vector<int> LHS;
+    bool isVisited = false;
+    bool isDep = false;
+    bool isMinDep = false;
+    bool isCandidateMinDep = true;
+    bool isNonDep = false;
+    bool isMaxNonDep = false;
+    bool isCandidateMaxNonDep = true;
+};
 
 class DFD {
 public:
@@ -53,9 +33,10 @@ public:
         if (ncol == -1) {
             //calculate
         }
-        data = new std::vector<std::string>[ncol];
+        tabu_for_unique_cols = 0;
         for (int i = 0; i < ncol; ++i) {
-            data[i].reserve(size);
+            data.push_back(std::vector<std::string>());
+            data.at(i).reserve(size);
         }
         std::ifstream in(path);
         std::string buffer;
@@ -65,156 +46,280 @@ public:
         for (int i = 0; i < size; ++i) {
             for (int j = 0; j < ncol - 1; ++j) {
                 std::getline(in, buffer, ',');
-                data[j].push_back(buffer);
+                data.at(j).push_back(buffer);
             }
             std::getline(in, buffer);
-            data[ncol - 1].push_back(buffer);
+            data.at(ncol - 1).push_back(buffer);
         }
     }
-    void ouput() {
-        for (int i = 0; i < size; ++i) {
-            for (int j = 0; j < ncol; ++j) {
-                std::cout << data[j][i] << ", ";
+    void output() {
+        // sort
+        for (auto fd : FD) {
+            std::string result;
+            std::vector<int> fd({ 12, 5 ,3 });
+            for (auto x : fd) {
+                result += std::to_string(x);
+                result += " ";
             }
-            std::cout << std::endl;
+            result.replace(result.rfind(' '), 1, "");
+            result.replace(result.rfind(' '), 1, " -> ");
+            std::cout << result;
         }
     }
     void extraction() {
         for (int i = 0; i < ncol; ++i) {
-            if (std::unordered_set<std::string>(data[i].begin(), data[i].end()).size() == data[i].size()) {
+            if (std::unordered_set<std::string>(data.at(i).begin(), data.at(i).end()).size() == data.at(i).size()) {
                 for (int j = 0; j < ncol; ++j) {
                     if (j != i) {
                         FD.push_back(std::vector<int>({ i, j }));
                     }
                 }
+                tabu_for_unique_cols |= BITMAP.at(i);
             } else {
                 non_unique_cols.push_back(i);
             }
         }
         for (int i : non_unique_cols) {
-            findLHSs(i);
-        }
-        // foreach RHS\in R do FD.push_back({K->RHS''|k\in findLHSs(RHS,r)})
-    }
-    void findLHSs(int i) {
-        std::vector<int> seeds;
-        seeds.push_back(non_unique_cols.at(0) == i ? non_unique_cols.at(1) : non_unique_cols.at(0)); // should random?
-        while (!seeds.empty) {
-            auto node = pickSeed();
-            while (node) {
-                if (visited(node)) {
-                    if (isCandidate(node) {
-                        if (isDependency(node)) {
-                            if (isMinimal(node)) {
-                                //FD.push()
-                            }
-                        } else {
-                            if (isMaximal(node)) {
-                                //maxNonDeps.push_back(node)
-                            }
-                        }
-                        updateDependencyType(node);
-                    }
-                } else {
-                    inferCategory(node);
-                    if (category(node) == null) {
-                        computePartitions(node, i);
-                    }
-                }
-                node = pickNextNode(node);
+            current_rhs = i;
+            findLHSs();
+            // copy to FD and clear
+            for (NodeIndex j : minDeps) {
+                auto fd = getColIndexVector(j);
+                fd.push_back(i);
+                FD.push_back(fd);
             }
-            seeds = generateNextSeeds();
+            NodeSet.clear();
+            minDeps.clear();
+            maxNonDeps.clear();
+        }
+    }
+    
+private:
+    std::vector<std::vector<std::string>> data;
+    int size;
+    int ncol;
+    int tabu_for_unique_cols;
+    ColIndex current_rhs;
+    std::vector<std::vector<ColIndex>> FD;
+    std::vector<ColIndex> non_unique_cols;
+    std::vector<Node> NodeSet;
+    std::vector<NodeIndex> minDeps;
+    std::vector<NodeIndex> maxNonDeps;
+    std::stack<NodeIndex> trace;
+
+    void subset(int n, std::set<int>& S, int depth = -1) {
+        if (depth == -1) {
+            depth = 32;
+        }
+        if (depth == 0 || n == 0)
+            return;
+        int nn = n;
+        while (nn != 0) {
+            int firstOne = nn & ~(nn - 1);
+            nn = nn & ~firstOne;
+            S.insert(n & ~firstOne);
+            subset(n & ~firstOne, S, depth - 1);
         }
     }
 
-    Node pickNextNode(Node node) {
-        if (node.isCandidateMinimalDep) {
-            auto S = uncheckedSubsets(node);
-            auto P = prunedSets(node);
-            S = S - P;
+    void superset(int n, std::set<int>& S, int tabu, int mask, int depth = -1) {
+        if (depth == -1) {
+            depth = 32;
+        }
+        if (depth == 0 || (n | tabu) == mask) return;
+        int nn = mask & ~n;
+        while (nn != 0) {
+            int firstOne = nn & ~(nn - 1);
+            nn = nn & ~firstOne;
+            if ((firstOne & tabu) != 0) {
+                S.insert(n | firstOne);
+                superset(n | firstOne, S, tabu, mask, depth - 1);
+            }
+        }
+    }
+
+    std::vector<ColIndex> getColIndexVector(NodeIndex nodeID) {
+        std::vector<ColIndex> V;
+        for (ColIndex i = 0; i < BITMAP.size(); ++i) {
+            if (nodeID & BITMAP.at(i)) {
+                V.push_back(i);
+            }
+        }
+        return V;
+    }
+
+    void minimize(std::set<NodeIndex>& newSeeds, std::set<NodeIndex>& seeds) {
+        seeds.clear();
+        while (!newSeeds.empty()) {
+            auto x = *newSeeds.begin();
+            newSeeds.erase(newSeeds.begin());
+            bool reserve_it = true;
+            for (auto iter = newSeeds.begin(); iter != newSeeds.end();) {
+                if ((*iter & x) == x) {
+                    newSeeds.erase(iter++);
+                } else if ((*iter & x) == *iter) {
+                    reserve_it = false;
+                    break;
+                } else {
+                    ++iter;
+                }
+            }
+            if (reserve_it) {
+                seeds.insert(x);
+            }
+        }
+        newSeeds.clear();
+    }
+
+    void findLHSs() {
+        std::vector<NodeIndex> seeds;
+
+        seeds.push_back(non_unique_cols.at(0) == current_rhs ? non_unique_cols.at(1) : non_unique_cols.at(0)); // should random?
+        while (!seeds.empty()) {
+            int nodeID = seeds.at(0); // should random?
+            while (nodeID != -1) {
+                auto& node = NodeSet.at(nodeID);
+                if (node.isVisited) {
+                    if (node.isCandidateMinDep || node.isCandidateMaxNonDep) {
+                        if (node.isDep) {
+                            if (node.isMinDep) {
+                                minDeps.push_back(nodeID);
+                            }
+                        } else {
+                            if (node.isMaxNonDep) {
+                                maxNonDeps.push_back(nodeID);
+                            }
+                        }
+                        //updateDependencyType(node);
+                    }
+                } else {
+                    inferCategory(nodeID);
+                    //if (category(node) == null) {
+                    //    computePartitions(node, current_rhs);
+                    //}
+                }
+                nodeID = pickNextNode(nodeID);
+            }
+            auto seeds = generateNextSeeds();
+        }
+    }
+
+    NodeIndex pickNextNode(NodeIndex nodeID) {
+        auto node = NodeSet.at(nodeID);
+        if (node.isCandidateMinDep) {
+            std::set<NodeIndex> S;
+            subset(nodeID, S, 1); // Not sure whether I understand it correctly
+            for (auto s : S) {
+                if (!NodeSet.at(s).isNonDep) {
+                    S.erase(s);
+                }
+            }
             if (S.empty()) {
-                //FD.push_back()
+                node.isMinDep = true;
+                minDeps.push_back(nodeID);
             } else {
-                nextNode = S.at(0); // should random
-                trace.push(node);
+                NodeIndex nextNode = *S.begin(); // should random
+                trace.push(nodeID);
                 return nextNode;
             }
-        } else if (node.isCandidateMaximalNonDep) {
-            auto S = uncheckedSupersets(node);
-            auto P = prunedSuperSets(node);
-            S = S - P;
+        } else if (node.isCandidateMaxNonDep) {
+            std::set<NodeIndex> S;
+            superset(nodeID, S, tabu_for_unique_cols | BITMAP.at(current_rhs), (1 << ncol) - 1, 1); // Not sure whether I understand it correctly
+            for (auto s : S) {
+                if (!NodeSet.at(s).isDep) {
+                    S.erase(s);
+                }
+            }
             if (S.empty()) {
-                //maxNonDeps.push_back(node)
+                node.isMaxNonDep = true;
+                maxNonDeps.push_back(nodeID);
             } else {
-                nextNode = S.at(0); // should random
-                trace.push(node);
+                NodeIndex nextNode = *S.begin(); // should random
+                trace.push(nodeID);
                 return nextNode;
             }
         } else {
-            return trace.nextNode;
+            if (trace.empty())
+                return -1;
+            NodeIndex idx = trace.top();
+            trace.pop();
+            return idx;
         }
     }
 
-    Seeds generateNextSeeds() {
-        auto seeds;
-        auto newSeeds;
+    std::set<NodeIndex> generateNextSeeds() {
+        std::set<NodeIndex> seeds;
+        std::set<NodeIndex> newSeeds;
         for (auto maxNonDep : maxNonDeps) {
-            complement = maxNonDeps - maxNonDep;
+            NodeIndex complement = ((1 << ncol) - 1) & (~maxNonDep) & ~(tabu_for_unique_cols | BITMAP.at(current_rhs));
             if (seeds.empty()) {
-                auto emptyColumns = Bitset(| maxNonDep | );
-                for (auto setBitIndex : complement) {
-                    seeds.push_back(emptyColumns.setCopy(setBitIndex);
-                }
-            } else {
-                for (dep : seeds) {
-                    for (setBitIndex : complement) {
-                        newSeeds.push_back(dep.setCopy(setBitIndex));
+                for (ColIndex i = 0; i < ncol; ++i) {
+                    if (complement & BITMAP.at(i)) {
+                        seeds.insert(BITMAP.at(i));
                     }
                 }
-                minimizedNewDeps = minimize newSeeds;
-                seeds = {};
-                for (newSeed : minimizedNewDeps) {
-                    seeds.push_back(newSeed);
+            } else {
+                for (auto dep : seeds) {
+                    for (ColIndex i = 0; i < ncol; ++i) {
+                        if (complement & BITMAP.at(i)) {
+                            seeds.insert(dep | BITMAP.at(i));
+                        }
+                    }
                 }
-                newSeeds = {};
+                minimize(newSeeds, seeds);
             }
         }
-        seeds = seeds - minDeps;
+        for (auto dep : minDeps)
+            seeds.erase(dep);
         return seeds;
     }
 
-    bool checkFD(std::vector<int>& lhs, int rhs) {
+    bool checkFD(NodeIndex nodeID) {
         std::map<std::string, std::string> dict;
+        auto lhs = getColIndexVector(nodeID);
+        bool isFD = true;
         for (int i = 0; i < size; ++i) {
             std::string l;
             for (auto j : lhs) {
-                l += data[j].at(i);
+                l += data.at(j).at(i);
             }
             auto iter = dict.find(l);
             if (iter == dict.end()) {
-                dict.insert(std::pair<std::string, std::string>(l, data[rhs].at(i)));
+                dict.insert(std::pair<std::string, std::string>(l, data.at(current_rhs).at(i)));
             } else {
-                if (data[rhs].at(i) != iter->second)
-                    return false;
+                if (data.at(current_rhs).at(i) != iter->second) {
+                    isFD = false;
+                    break;
+                }
             }
         }
-        return true;
+        if (isFD) { // could do more?
+            std::set<NodeIndex> S;
+            superset(nodeID, S, BITMAP.at(current_rhs) | tabu_for_unique_cols, (1 << ncol) - 1);
+            for (int s : S) {
+                NodeSet.at(s).isVisited = true;
+                NodeSet.at(s).isDep = true;
+                NodeSet.at(s).isCandidateMinDep = false;
+                NodeSet.at(s).isCandidateMaxNonDep = false;
+            }
+        } else {
+            std::set<NodeIndex> S;
+            subset(nodeID, S);
+            for (int s : S) {
+                NodeSet.at(s).isVisited = true;
+                NodeSet.at(s).isNonDep = true;
+                NodeSet.at(s).isCandidateMinDep = false;
+                NodeSet.at(s).isCandidateMaxNonDep = false;
+            }
+        }
+        return isFD;
     }
-private:
-    std::vector<std::string>* data;
-    int size;
-    int ncol;
-    std::vector<std::vector<int>> FD;
-    std::vector<int> non_unique_cols;
 
-    struct Node {
-        std::vector<int> LHS;
-        bool isVisited;
-        bool isCandidate;
-        bool isDependency;
-        bool isMinimal;
-        bool isMaximal;
-        bool isCandidateMinimalDep;
-        bool isCandidateMaximalNonDep;
-    };
+    void inferCategory(NodeIndex nodeID) {
+        auto node = NodeSet.at(nodeID);
+        node.isVisited = true;
+        bool check_result = checkFD(nodeID);
+        node.isCandidateMinDep = check_result;
+        node.isCandidateMaxNonDep = !check_result;
+    }
 };
