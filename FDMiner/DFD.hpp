@@ -10,7 +10,7 @@
 #include <set>
 
 typedef int NodeIndex;
-typedef int ColIndex; 
+typedef int ColIndex;
 const std::vector<ColIndex> BITMAP({ 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768 });
 
 struct Node {
@@ -51,19 +51,19 @@ public:
             std::getline(in, buffer);
             data.at(ncol - 1).push_back(buffer);
         }
+        NodeSet.resize(BITMAP.at(ncol));
     }
     void output() {
         // sort
         for (auto fd : FD) {
             std::string result;
-            std::vector<int> fd({ 12, 5 ,3 });
             for (auto x : fd) {
-                result += std::to_string(x);
+                result += std::to_string(x+1);
                 result += " ";
             }
             result.replace(result.rfind(' '), 1, "");
             result.replace(result.rfind(' '), 1, " -> ");
-            std::cout << result;
+            std::cout << result << std::endl;
         }
     }
     void extraction() {
@@ -82,18 +82,17 @@ public:
         for (int i : non_unique_cols) {
             current_rhs = i;
             findLHSs();
-            // copy to FD and clear
             for (NodeIndex j : minDeps) {
                 auto fd = getColIndexVector(j);
                 fd.push_back(i);
                 FD.push_back(fd);
             }
-            NodeSet.clear();
+            std::fill(NodeSet.begin(), NodeSet.end(), Node());
             minDeps.clear();
             maxNonDeps.clear();
         }
     }
-    
+
 private:
     std::vector<std::vector<std::string>> data;
     int size;
@@ -172,11 +171,12 @@ private:
     }
 
     void findLHSs() {
-        std::vector<NodeIndex> seeds;
-
-        seeds.push_back(non_unique_cols.at(0) == current_rhs ? non_unique_cols.at(1) : non_unique_cols.at(0)); // should random?
+        if (non_unique_cols.size() < 2) return;
+        std::set<NodeIndex> seeds;
+        NodeIndex firstseed = non_unique_cols.at(0) == current_rhs ? non_unique_cols.at(1) : non_unique_cols.at(0); // should random?
+        seeds.insert(BITMAP.at(firstseed));
         while (!seeds.empty()) {
-            int nodeID = seeds.at(0); // should random?
+            int nodeID = *seeds.begin(); // should random?
             while (nodeID != -1) {
                 auto& node = NodeSet.at(nodeID);
                 if (node.isVisited) {
@@ -200,12 +200,12 @@ private:
                 }
                 nodeID = pickNextNode(nodeID);
             }
-            auto seeds = generateNextSeeds();
+            seeds = generateNextSeeds();
         }
     }
 
     NodeIndex pickNextNode(NodeIndex nodeID) {
-        auto node = NodeSet.at(nodeID);
+        auto& node = NodeSet.at(nodeID);
         if (node.isCandidateMinDep) {
             std::set<NodeIndex> S;
             subset(nodeID, S, 1); // Not sure whether I understand it correctly
@@ -238,13 +238,12 @@ private:
                 trace.push(nodeID);
                 return nextNode;
             }
-        } else {
-            if (trace.empty())
-                return -1;
-            NodeIndex idx = trace.top();
-            trace.pop();
-            return idx;
         }
+        if (trace.empty())
+            return -1;
+        NodeIndex idx = trace.top();
+        trace.pop();
+        return idx;
     }
 
     std::set<NodeIndex> generateNextSeeds() {
@@ -297,26 +296,28 @@ private:
             std::set<NodeIndex> S;
             superset(nodeID, S, BITMAP.at(current_rhs) | tabu_for_unique_cols, (1 << ncol) - 1);
             for (int s : S) {
-                NodeSet.at(s).isVisited = true;
-                NodeSet.at(s).isDep = true;
-                NodeSet.at(s).isCandidateMinDep = false;
-                NodeSet.at(s).isCandidateMaxNonDep = false;
+                auto& node = NodeSet.at(s);
+                node.isVisited = true;
+                node.isDep = true;
+                node.isCandidateMinDep = false;
+                node.isCandidateMaxNonDep = false;
             }
         } else {
             std::set<NodeIndex> S;
             subset(nodeID, S);
             for (int s : S) {
-                NodeSet.at(s).isVisited = true;
-                NodeSet.at(s).isNonDep = true;
-                NodeSet.at(s).isCandidateMinDep = false;
-                NodeSet.at(s).isCandidateMaxNonDep = false;
+                auto& node = NodeSet.at(s);
+                node.isVisited = true;
+                node.isNonDep = true;
+                node.isCandidateMinDep = false;
+                node.isCandidateMaxNonDep = false;
             }
         }
         return isFD;
     }
 
     void inferCategory(NodeIndex nodeID) {
-        auto node = NodeSet.at(nodeID);
+        auto& node = NodeSet.at(nodeID);
         node.isVisited = true;
         bool check_result = checkFD(nodeID);
         node.isCandidateMinDep = check_result;
