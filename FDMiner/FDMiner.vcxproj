@@ -118,6 +118,7 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="hset.hpp" />
     <ClInclude Include="reader.hpp" />
     <ClInclude Include="TANE.hpp" />
   </ItemGroup>

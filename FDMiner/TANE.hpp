@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include "reader.hpp"
+#include "hset.hpp"
 
 class TANE {
 public:
@@ -13,7 +14,7 @@ public:
   int nrow;
   int ncol;
 
-  TANE() = default;
+  TANE () = default;
 
   void read_data(std::string path) {
     auto r = Reader(path);

@@ -26,5 +26,8 @@
     <ClInclude Include="reader.hpp">
       <Filter>源文件</Filter>
     </ClInclude>
+    <ClInclude Include="hset.hpp">
+      <Filter>源文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
