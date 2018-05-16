@@ -62,7 +62,19 @@ public:
         (p->second).push_back(ridx);
       }
     }
+    strip_partition(ret);
     return ret;
+  }
+
+  // strip single-value partition
+  void strip_partition(std::unordered_map<int, std::vector<int>>& partitions) {
+    for (auto iter = partitions.begin(); iter != partitions.end(); ) {
+      if (iter->second.size() == 1) {
+        iter = partitions.erase(iter);
+      } else {
+        ++iter;
+      }
+    }
   }
 
   int count_ones(int code) {
