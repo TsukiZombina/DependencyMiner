@@ -17,7 +17,6 @@ public:
   Reader(std::string path) {
     // std::cout << "Reading data: " << path << std::endl;
     read_data(path);
-    check_integrity();
   }
 
   void read_data(std::string path) {

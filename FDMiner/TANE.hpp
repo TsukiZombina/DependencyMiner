@@ -50,6 +50,21 @@ public:
     return new_level;
   }
 
+  // compute partition with respoect to a single column
+  std::unordered_map<int, std::vector<int>> compute_partitions(int col) {
+    std::unordered_map<int, std::vector<int>> ret;
+    for (int ridx = 0; ridx < data.size(); ++ridx) {
+      auto& row = data[ridx];
+      auto p = ret.find(row[col]);
+      if (p == ret.end()) {
+        ret[row[col]] = std::vector<int>{ridx};
+      } else {
+        (p->second).push_back(ridx);
+      }
+    }
+    return ret;
+  }
+
   int count_ones(int code) {
     int ret = 0;
     while (code) {
