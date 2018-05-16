@@ -1,19 +1,38 @@
 #pragma once
 #include <vector>
-#include <unordered_set>
+#include <cmath>
+#include <iostream>
 
 // HSet for "hashable set"
 class HSet {
 public:
-  std::unordered_set<int> members;
+  // by using vector instead of unordered_set
+  // we can make union faster
+  // the data have to be ordered
+  std::vector<int> data;
+
   int code;
-  HSet (std::unordered_set<int> init, int base=16) : members(std::move(init)) {
+
+  HSet (std::vector<int>& init) : data(std::move(init)) {
+    update_code();
+  }
+
+  HSet (int init) {
+    data.push_back(init);
+    update_code();
+  }
+
+  void pretty_print() {
+    for (auto item: data) {
+      std::cout << item << " ";
+    }
+    std::cout << "| code: " << code << std::endl;
+  }
+
+  void update_code() {
     code = 0;
-    for (int i = 0; i < base; ++i) {
-      if (members.find(i) != members.end()) {
-        code += 1;
-      }
-      code <<= 1;
+    for (auto item: data) {
+      code += std::pow(2, item);
     }
   }
 };
