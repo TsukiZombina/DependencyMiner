@@ -58,7 +58,7 @@ public:
         for (auto fd : FD) {
             std::string result;
             for (auto x : fd) {
-                result += std::to_string(x+1);
+                result += std::to_string(x + 1);
                 result += " ";
             }
             result.replace(result.rfind(' '), 1, "");
@@ -297,27 +297,27 @@ private:
                 }
             }
         }
-        //if (isFD) { // could do more?
-        //    std::set<NodeIndex> S;
-        //    superset(nodeID, S, BITMAP.at(current_rhs) | tabu_for_unique_cols, (1 << ncol) - 1);
-        //    for (int s : S) {
-        //        auto& node = NodeSet.at(s);
-        //        node.isVisited = true;
-        //        node.isDep = true;
-        //        node.isCandidateMinDep = false;
-        //        node.isCandidateMaxNonDep = false;
-        //    }
-        //} else {
-        //    std::set<NodeIndex> S;
-        //    subset(nodeID, S);
-        //    for (int s : S) {
-        //        auto& node = NodeSet.at(s);
-        //        node.isVisited = true;
-        //        node.isNonDep = true;
-        //        node.isCandidateMinDep = false;
-        //        node.isCandidateMaxNonDep = false;
-        //    }
-        //}
+        if (isFD) { // could do more?
+            std::set<NodeIndex> S;
+            superset(nodeID, S, BITMAP.at(current_rhs) | tabu_for_unique_cols, (1 << ncol) - 1);
+            for (int s : S) {
+                auto& node = NodeSet.at(s);
+                node.isVisited = true;
+                node.isDep = true;
+                node.isCandidateMinDep = false;
+                node.isCandidateMaxNonDep = false;
+            }
+        } else {
+            std::set<NodeIndex> S;
+            subset(nodeID, S);
+            for (int s : S) {
+                auto& node = NodeSet.at(s);
+                node.isVisited = true;
+                node.isNonDep = true;
+                node.isCandidateMinDep = false;
+                node.isCandidateMaxNonDep = false;
+            }
+        }
         return isFD;
     }
 
