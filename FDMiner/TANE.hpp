@@ -6,25 +6,26 @@
 #include <unordered_set>
 #include <algorithm>
 #include <iterator>
+#include <utility>
 #include "reader.hpp"
-#include "hset.hpp"
+#include "bitmap_set.hpp"
 
 class TANE {
 public:
+  // TODO: change this to vector of vector
   using Partition = std::unordered_map<int, std::vector<int>>;
 
   std::vector<std::vector<int>> data;
   std::vector<int> T;
-  std::unordered_map<int, std::vector<int>> C;
-  std::vector<HSet> L;
+  std::unordered_map<int, int> C;
+  std::vector<int> L;
   // partitions with respect to a column set
   std::unordered_map<int, Partition> set_part_map;
-  // last item is rhs
-  // note rhs is not excluded
-  std::vector<std::vector<int>> FD;
+  std::vector<std::pair<int, int>> FD;
 
   int nrow;
   int ncol;
+  int full_set;
 
   TANE () = default;
 
@@ -33,29 +34,30 @@ public:
     data = std::move(r.data);
     nrow = r.nrow;
     ncol = r.ncol;
+
     T.resize(nrow);
+
+    full_set = 0;
+    // memset(&full_set, 1, sizeof(int));
+    for (int i = 0; i < ncol; ++i) {
+      full_set = (full_set << 1) + 1;
+    }
   }
 
   void generate_next_level() {
-    std::vector<HSet> new_level;
+    std::vector<int> new_level;
     std::unordered_set<int> visited;
     for (int i = 0; i < L.size(); ++i) {
       for (int j = i + 1; j < L.size(); ++j) {
-        auto& s1 = L[i];
-        auto& s2 = L[j];
-        // compute how many bits are different
-        auto diff = count_ones(s1.code ^ s2.code);
-        if (diff == 2) {
-          std::vector<int> buffer;
-          std::set_union(s1.data.begin(), s1.data.end(),
-                         s2.data.begin(), s2.data.end(),
-                         std::back_inserter(buffer));
-          auto hset = HSet(buffer);
-          if (visited.find(hset.code) == visited.end()) {
-            visited.insert(hset.code);
-            new_level.emplace_back(hset);
-            auto new_p = multiply_partitions(set_part_map[s1.code], set_part_map[s2.code]);
-            set_part_map[hset.code] = std::move(new_p);
+        auto s1 = L[i];
+        auto s2 = L[j];
+        if (difference(s1, s2) == 2) {
+          int merged = merge_set(s1, s2);
+          if (visited.find(merged) == visited.end()) {
+            visited.insert(merged);
+            new_level.push_back(merged);
+            auto new_p = multiply_partitions(set_part_map[s1], set_part_map[s2]);
+            set_part_map[merged] = std::move(new_p);
           }
         }
       }
@@ -64,7 +66,7 @@ public:
   }
 
   // compute partition with respoect to a single column
-  Partition compute_partitions(int col) {
+  Partition one_column_partition(int col) {
     Partition ret;
     for (int ridx = 0; ridx < data.size(); ++ridx) {
       auto& row = data[ridx];
@@ -75,19 +77,14 @@ public:
         (p->second).push_back(ridx);
       }
     }
-    strip_partition(ret);
-    return ret;
-  }
-
-  // strip single-value partition
-  void strip_partition(Partition& partitions) {
-    for (auto iter = partitions.begin(); iter != partitions.end(); ) {
+    for (auto iter = ret.begin(); iter != ret.end(); ) {
       if (iter->second.size() == 1) {
-        iter = partitions.erase(iter);
+        iter = ret.erase(iter);
       } else {
         ++iter;
       }
     }
+    return ret;
   }
 
   Partition multiply_partitions(Partition& lhs, Partition& rhs) {
@@ -116,26 +113,18 @@ public:
     return ret;
   }
 
-  void mine_fd() {
-    // L_1 := {{A} | A \in R}
+  void run() {
     L.clear();
     for (int i = 0; i < ncol; ++i) {
-      L.emplace_back(i);
+      L.emplace_back(encode(i));
     }
 
-    // init partitions
     set_part_map.clear();
-    for (auto hset: L) {
-      set_part_map[hset.code] = std::move(compute_partitions(hset.data[0]));
+    for (int i = 0; i < ncol; ++i) {
+      set_part_map[L[i]] = std::move(one_column_partition(i));
     }
 
-    // C(\empty) := R
-    std::vector<int> R;
-    for (int i = 0; i < ncol; ++i) {
-      R.push_back(i);
-    }
-    C.clear();
-    C[0] = std::move(R);
+    C[0] = full_set;
 
     int depth = 0;
     while (!L.empty()) {
@@ -149,36 +138,23 @@ public:
 
   void compute_dependencies() {
     for (auto X: L) {
-      C[X.code] = std::move(full_set());
-      std::vector<int> buffer;
-      for (auto item: X.data) {
-        buffer.clear();
-        int X_without_A = X.code - std::pow(2, item);
-        std::set_intersection(C[X.code].begin(), C[X.code].end(),
-                              C[X_without_A].begin(), C[X_without_A].end(),
-                              std::back_inserter(buffer));
-        C[X.code] = std::move(buffer);
+      C[X] = full_set;
+      auto Xset = decode_to_vector(X);
+      for (auto A: Xset) {
+        int X_without_A = exclude_item(X, A);
+        C[X] = intersect(C[X], C[X_without_A]);
       }
     }
     for (auto X: L) {
-      std::vector<int> R_minus_X;
-      std::vector<int> candidates;
-      std::set_intersection(C[X.code].begin(), C[X.code].end(),
-                            X.data.begin(), X.data.end(),
-                            std::back_inserter(candidates));
+      auto candidates = decode_to_vector(intersect(X, C[X]));
       for (auto A: candidates) {
         if (isValid(X, A)) {
-          // from line 6
-          auto buffer = X.data;
-          buffer.push_back(A);
-          FD.emplace_back(std::move(buffer));
-          C[X.code].erase(std::find(C[X.code].begin(), C[X.code].end(), A));
-          // remove all B in R \ X from C
-          for (auto iter = C[X.code].begin(); iter != C[X.code].end(); ) {
-            if (!X.contains(*iter)) { // then *iter \in R\X
-              iter = C[X.code].erase(iter);
-            } else {
-              ++iter;
+          FD.emplace_back(exclude_item(X, A), A);
+          C[X] = exclude_item(C[X], A);
+          auto CX_set = decode_to_vector(C[X]);
+          for (auto B: CX_set) {
+            if (!contains(X, B)) { // B \in R\X
+              C[X] = exclude_item(C[X], B);
             }
           }
         }
@@ -186,9 +162,9 @@ public:
     }
   }
 
-  bool isValid(HSet& bigX, int A) {
-    auto X = bigX.remove(A);
-    if (X.code == 0) {
+  bool isValid(int bigX, int A) {
+    auto X = exclude_item(bigX, A);
+    if (!X) {
       return false;
     }
     if (compute_eX(X) == compute_eX(bigX)) {
@@ -197,8 +173,8 @@ public:
     return false;
   }
 
-  int compute_eX(HSet& X) {
-    auto P = set_part_map[X.code];
+  int compute_eX(int X) {
+    auto P = set_part_map[X];
     int eX = 0;
     for (auto e_class: P) {
       eX += e_class.second.size();
@@ -213,44 +189,19 @@ public:
     }
   }
 
-  int count_ones(int code) {
-    int ret = 0;
-    while (code) {
-      code = code & (code - 1);
-      ++ret;
-    }
-    return ret;
-  }
-
-  std::vector<int> full_set() {
-    std::vector<int> ret;
-    for (int i = 0; i < ncol; ++i) {
-      ret.push_back(i);
-    }
-    return ret;
-  }
-
   void prune() {
     for (auto iter = L.begin(); iter != L.end(); ) {
-      auto& X = *iter;
-      if (C[X.code].empty()) {
+      auto X = *iter;
+      if (!C[X]) {
         iter = L.erase(iter);
-      } else if (set_part_map[X.code].empty()) { // superKey
-        for (auto A: C[X.code]) {
-          auto intersect = full_set();
-          for (auto B: X.data) {
-            std::vector<int> tmp;
-            auto constructed = X.merge(A).remove(B);
-            std::set_intersection(intersect.begin(), intersect.end(),
-                                  constructed.data.begin(), constructed.data.end(),
-                                  std::back_inserter(tmp));
-            intersect = std::move(tmp);
+      } else if (set_part_map[X].empty()) { // superKey
+        for (auto A: decode_to_vector(C[X])) {
+          auto tmp = full_set;
+          for (auto B: decode_to_vector(X)) {
+            tmp = intersect(tmp, C[exclude_item(merge_item(X, A), B)]);
           }
-          auto tmpset = HSet(intersect);
-          if (tmpset.contains(A)) {
-            auto dependency = X.data;
-            dependency.push_back(A);
-            FD.emplace_back(dependency);
+          if (contains(tmp, A)) {
+            FD.emplace_back(exclude_item(X, A), A);
           }
         }
         iter = L.erase(iter);
