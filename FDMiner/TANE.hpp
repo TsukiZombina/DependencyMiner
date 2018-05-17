@@ -19,7 +19,6 @@ public:
   std::vector<int> T;
   std::unordered_map<int, int> C;
   std::vector<int> L;
-  // partitions with respect to a column set
   std::unordered_map<int, Partition> set_part_map;
   std::vector<std::pair<int, int>> FD;
 
@@ -195,7 +194,7 @@ public:
       if (!C[X]) {
         iter = L.erase(iter);
       } else if (set_part_map[X].empty()) { // superKey
-        for (auto A: decode_to_vector(C[X])) {
+        for (auto A: decode_to_vector(exclude_item(C[X], X))) {
           auto tmp = full_set;
           for (auto B: decode_to_vector(X)) {
             tmp = intersect(tmp, C[exclude_item(merge_item(X, A), B)]);
