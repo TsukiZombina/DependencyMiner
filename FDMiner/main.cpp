@@ -1,11 +1,8 @@
 #include "TANE.hpp"
-#include "bitmap_set.hpp"
-#include "reader.hpp"
 #include <string>
 #include <fstream>
 
-void test_mine_FD() {
-    // std::string path = "./data/test_data.txt";
+void test_TANE() {
     std::string path = "./data.txt";
     TANE t;
     t.read_data(path);
@@ -26,7 +23,7 @@ void test_mine_FD() {
 }
 
 int main() {
-    test_mine_FD();
+    test_TANE();
     system("pause");
     return 0;
 }

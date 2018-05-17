@@ -5,6 +5,7 @@
 
 # custom
 *.txt
+*.diagsession
 
 # User-specific files
 *.suo
