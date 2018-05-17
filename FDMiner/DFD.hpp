@@ -3,6 +3,7 @@
 #include <vector>
 #include <stack>
 #include <unordered_set>
+#include <unordered_map>
 #include <map>
 #include <fstream>
 #include <iostream>
@@ -10,7 +11,7 @@
 #include <set>
 
 #define PROPOGATE
-#define RANDOM
+//#define RANDOM
 
 typedef int NodeIndex;
 typedef int ColIndex;
@@ -47,17 +48,26 @@ public:
             std::cout << "read file fail. Please check the path and retry/n";
         }
         for (int i = 0; i < size; ++i) {
-            for (int j = 0; j < ncol - 1; ++j) {
-                std::getline(in, buffer, ',');
-                data.at(j).push_back(buffer);
-            }
             std::getline(in, buffer);
-            data.at(ncol - 1).push_back(buffer);
+            int j = 0;
+            auto loc = buffer.find(',');
+            auto old = size_t(0);
+            while (loc != std::string::npos) {
+                if (buffer.at(loc + 1) == ' ') {
+                    loc = buffer.find(',', loc + 1);
+                } else {
+                    data.at(j).push_back(buffer.substr(old, loc - old));
+                    ++j;
+                    old = loc + 1;
+                    loc = buffer.find(',', loc + 1);
+                }
+            }
+            data.at(j).push_back(buffer.substr(old, loc - old));
         }
         NodeSet.resize(BITMAP.at(ncol));
     }
 
-    void output() {
+    void output(std::ostream& out) {
         for (auto fd : FD) {
             std::string result;
             for (auto x : fd) {
@@ -66,7 +76,7 @@ public:
             }
             result.replace(result.rfind(' '), 1, "");
             result.replace(result.rfind(' '), 1, " -> ");
-            std::cout << result << std::endl;
+            out << result << std::endl;
         }
     }
 
@@ -83,7 +93,7 @@ public:
                 non_unique_cols.push_back(i);
             }
         }
-        for (int i : non_unique_cols) {
+        for (int i = 0; i < ncol; ++i) {
             current_rhs = i;
             findLHSs();
             for (NodeIndex j : minDeps) {
@@ -347,13 +357,13 @@ private:
     }
 
     bool checkFD(NodeIndex nodeID) {
-        std::map<std::string, std::string> dict;
+        std::unordered_map<std::string, std::string> dict;
         auto lhs = getColIndexVector(nodeID);
         bool isFD = true;
         for (int i = 0; i < size; ++i) {
             std::string l;
             for (auto j : lhs) {
-                l += data.at(j).at(i);
+                l += data.at(j).at(i) + ' ';
             }
             auto iter = dict.find(l);
             if (iter == dict.end()) {
