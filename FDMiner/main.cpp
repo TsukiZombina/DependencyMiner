@@ -25,13 +25,13 @@ void test_generate_next_level() {
     for (auto h: tmp) {
         h.pretty_print();
     }
-    std::cout << "============= next level =================\n";
-    while (!tmp.empty()) {
-        tmp = t.generate_next_level(tmp);
-        for (auto h: tmp) {
+    t.level = std::move(tmp);
+    while (!t.level.empty()) {
+        std::cout << "==========================================\n";
+        t.generate_next_level();
+        for (auto h: t.level) {
             h.pretty_print();
         }
-        std::cout << "============= next level =================\n";
     }
 }
 
@@ -86,7 +86,7 @@ void test_Hset() {
 }
 
 int main() {
-    test_partition_product();
+    test_generate_next_level();
     system("pause");
     return 0;
 }

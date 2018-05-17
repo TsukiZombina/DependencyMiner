@@ -15,6 +15,8 @@ public:
 
   std::vector<std::vector<int>> data;
   std::vector<int> T;
+  std::unordered_map<int, std::vector<int>> C;
+  std::vector<HSet> level;
 
   int nrow;
   int ncol;
@@ -29,13 +31,13 @@ public:
     T.resize(nrow);
   }
 
-  std::vector<HSet> generate_next_level(std::vector<HSet>& old_level) {
+  void generate_next_level() {
     std::vector<HSet> new_level;
     std::unordered_set<int> visited;
-    for (int i = 0; i < old_level.size(); ++i) {
-      for (int j = i + 1; j < old_level.size(); ++j) {
-        auto& s1 = old_level[i];
-        auto& s2 = old_level[j];
+    for (int i = 0; i < level.size(); ++i) {
+      for (int j = i + 1; j < level.size(); ++j) {
+        auto& s1 = level[i];
+        auto& s2 = level[j];
         // compute how many bits are different
         auto diff = count_ones(s1.code ^ s2.code);
         if (diff == 2) {
@@ -51,7 +53,7 @@ public:
         }
       }
     }
-    return new_level;
+    level = std::move(new_level);
   }
 
   // compute partition with respoect to a single column
@@ -105,6 +107,28 @@ public:
       }
     }
     return ret;
+  }
+
+  std::vector<std::vector<int>> mine_fd() {
+    C.clear();
+
+    // L_1 := {{A} | A \in R}
+    std::vector<HSet> level;
+    for (int i = 0; i < ncol; ++i) {
+      level.emplace_back(i);
+    }
+
+    // C(\empty) := R
+    std::vector<int> R;
+    for (int i = 0; i < ncol; ++i) {
+      R.push_back(i);
+    }
+    C[0] = std::move(R);
+
+    while (!level.empty()) {
+      // line 6
+    }
+
   }
 
   void init_T() {
