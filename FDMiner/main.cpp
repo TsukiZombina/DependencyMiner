@@ -8,7 +8,7 @@ void test_TANE() {
     t.read_data(path);
     t.run();
 
-    std::ofstream ofs("./result.txt");
+    std::ofstream ofs("./TANE_out.txt");
 
     for (auto item: t.FD) {
         auto lhs = decode_to_vector(item.first);
@@ -24,6 +24,5 @@ void test_TANE() {
 
 int main() {
     test_TANE();
-    system("pause");
     return 0;
 }
