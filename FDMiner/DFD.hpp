@@ -9,6 +9,9 @@
 #include <algorithm>
 #include <set>
 
+#define PROPOGATE
+#define RANDOM
+
 typedef int NodeIndex;
 typedef int ColIndex;
 const std::vector<ColIndex> BITMAP({ 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768 });
@@ -53,19 +56,8 @@ public:
         }
         NodeSet.resize(BITMAP.at(ncol));
     }
+
     void output() {
-        // sort
-        std::sort(FD.begin(), FD.end(), [](const std::vector<int>& lhs, const std::vector<int>& rhs) -> bool {
-            auto iter1 = lhs.begin();
-            auto iter2 = rhs.begin();
-            while (iter1 != lhs.end() && iter2 != rhs.end()) {
-                if (*iter1 < *iter2) return true;
-                if (*iter1 > *iter2) return false;
-                ++iter1;
-                ++iter2;
-            }
-            return(iter2 != rhs.end()); // lhs shorter return true
-        });
         for (auto fd : FD) {
             std::string result;
             for (auto x : fd) {
@@ -77,12 +69,13 @@ public:
             std::cout << result << std::endl;
         }
     }
+
     void extraction() {
         for (int i = 0; i < ncol; ++i) {
             if (std::unordered_set<std::string>(data.at(i).begin(), data.at(i).end()).size() == data.at(i).size()) {
                 for (int j = 0; j < ncol; ++j) {
                     if (j != i) {
-                        FD.push_back(std::vector<int>({ i, j }));
+                        FD.push_back(std::vector<int>({ i + 1, j + 1 }));
                     }
                 }
                 tabu_for_unique_cols |= BITMAP.at(i);
@@ -95,13 +88,29 @@ public:
             findLHSs();
             for (NodeIndex j : minDeps) {
                 auto fd = getColIndexVector(j);
-                fd.push_back(i);
+                for (auto& x : fd) x += 1;
+                fd.push_back(i + 1);
                 FD.push_back(fd);
             }
             std::fill(NodeSet.begin(), NodeSet.end(), Node());
             minDeps.clear();
             maxNonDeps.clear();
         }
+        std::sort(FD.begin(), FD.end(), [](const std::vector<int>& lhs, const std::vector<int>& rhs) -> bool {
+            auto iter1 = lhs.begin();
+            auto iter2 = rhs.begin();
+            while (iter1 != lhs.end() && iter2 != rhs.end()) {
+                if (*iter1 < *iter2) return true;
+                if (*iter1 > *iter2) return false;
+                ++iter1;
+                ++iter2;
+            }
+            return(iter2 != rhs.end()); // lhs shorter return true
+        });
+    }
+
+    std::vector<std::vector<int>>& getFD() {
+        return FD;
     }
 
 private:
@@ -117,7 +126,16 @@ private:
     std::vector<NodeIndex> maxNonDeps;
     std::stack<NodeIndex> trace;
 
-    void subset(int n, std::set<int>& S, int depth = -1) {
+    int getRandom(std::set<int>& S) {
+        int idx = rand() % S.size(); // not equal prob but acceptable
+        auto iter = S.begin();
+        while (idx--) {
+            ++iter;
+        }
+        return *iter;
+    }
+
+    void subset(int n, std::set<int>& S, int depth = -1) { // optimization: just use 1 layer propogate now
         if (depth == -1) {
             depth = 32;
         }
@@ -133,7 +151,7 @@ private:
         }
     }
 
-    void superset(int n, std::set<int>& S, int tabu, int mask, int depth = -1) {
+    void superset(int n, std::set<int>& S, int tabu, int mask, int depth = -1) { // optimization: just use 1 layer propogate now
         if (depth == -1) {
             depth = 32;
         }
@@ -187,13 +205,17 @@ private:
         std::set<NodeIndex> seeds;
         //NodeIndex firstseed = non_unique_cols.at(0) == current_rhs ? non_unique_cols.at(1) : non_unique_cols.at(0); // should random?
         //seeds.insert(BITMAP.at(firstseed));
-        NodeIndex firstseed = ((1 << ncol) - 1) & ~(tabu_for_unique_cols | BITMAP.at(current_rhs));
-        seeds.insert(firstseed);
+        //NodeIndex firstseed = ((1 << ncol) - 1) & ~(tabu_for_unique_cols | BITMAP.at(current_rhs));
+        //seeds.insert(firstseed);
         for (auto col : non_unique_cols) {
             if (col == current_rhs) continue;
             seeds.insert(BITMAP.at(col));
             while (!seeds.empty()) {
-                int nodeID = *seeds.begin(); // should random?
+#ifdef RANDOM
+                int nodeID = getRandom(seeds);
+#else
+                int nodeID = *seeds.begin();
+#endif
                 while (nodeID != -1) {
                     auto& node = NodeSet.at(nodeID);
                     if (node.isVisited) {
@@ -250,15 +272,13 @@ private:
                     minDeps.push_back(nodeID);
                 }
             } else {
-                //NodeIndex nextNode = *S.begin(); // should random
-                int idx = rand() % S.size();
-                auto iter = S.begin();
-                while(idx--) {
-                    ++iter;
-                }
+#ifdef RANDOM
+                NodeIndex nextNode = getRandom(S);
+#else
+                NodeIndex nextNode = *S.begin(); // should random
+#endif
                 trace.push(nodeID);
-                //return nextNode;
-                return *iter;
+                return nextNode;
             }
         } else if (node.isCandidateMaxNonDep) {
             std::set<NodeIndex> S;
@@ -283,7 +303,11 @@ private:
                     maxNonDeps.push_back(nodeID);
                 }
             } else {
-                NodeIndex nextNode = *S.begin(); // should random
+#ifdef RANDOM
+                NodeIndex nextNode = getRandom(S);
+#else
+                NodeIndex nextNode = *S.begin();
+#endif
                 trace.push(nodeID);
                 return nextNode;
             }
@@ -341,27 +365,29 @@ private:
                 }
             }
         }
-        //if (isFD) { // could do more?
-        //    std::set<NodeIndex> S;
-        //    superset(nodeID, S, BITMAP.at(current_rhs) | tabu_for_unique_cols, (1 << ncol) - 1);
-        //    for (int s : S) {
-        //        auto& node = NodeSet.at(s);
-        //        node.isVisited = true;
-        //        node.isDep = true;
-        //        node.isCandidateMinDep = false;
-        //        node.isCandidateMaxNonDep = false;
-        //    }
-        //} else {
-        //    std::set<NodeIndex> S;
-        //    subset(nodeID, S);
-        //    for (int s : S) {
-        //        auto& node = NodeSet.at(s);
-        //        node.isVisited = true;
-        //        node.isNonDep = true;
-        //        node.isCandidateMinDep = false;
-        //        node.isCandidateMaxNonDep = false;
-        //    }
-        //}
+#ifdef PROPOGATE
+        if (isFD) { // could do more?
+            std::set<NodeIndex> S;
+            superset(nodeID, S, BITMAP.at(current_rhs) | tabu_for_unique_cols, (1 << ncol) - 1, 1);
+            for (int s : S) {
+                auto& node = NodeSet.at(s);
+                node.isVisited = true;
+                node.isDep = true;
+                node.isCandidateMinDep = false;
+                node.isCandidateMaxNonDep = false;
+            }
+        } else {
+            std::set<NodeIndex> S;
+            subset(nodeID, S, 1);
+            for (int s : S) {
+                auto& node = NodeSet.at(s);
+                node.isVisited = true;
+                node.isNonDep = true;
+                node.isCandidateMinDep = false;
+                node.isCandidateMaxNonDep = false;
+            }
+        }
+#endif
         return isFD;
     }
 
