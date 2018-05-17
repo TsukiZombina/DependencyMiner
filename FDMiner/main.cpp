@@ -6,12 +6,12 @@
 
 void test_mine_FD() {
     // std::string path = "./data/test_data.txt";
-    std::string path = "./data/data.txt";
+    std::string path = "./data.txt";
     TANE t;
     t.read_data(path);
     t.run();
 
-    std::ofstream ofs("./data/output.txt");
+    std::ofstream ofs("./result.txt");
 
     for (auto item: t.FD) {
         auto lhs = decode_to_vector(item.first);
