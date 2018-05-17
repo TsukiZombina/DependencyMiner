@@ -193,17 +193,6 @@ public:
       auto X = *iter;
       if (!C[X]) {
         iter = L.erase(iter);
-      } else if (set_part_map[X].empty()) { // superKey
-        for (auto A: decode_to_vector(exclude_set(C[X], X))) {
-          auto tmp = full_set;
-          for (auto B: decode_to_vector(X)) {
-            tmp = intersect(tmp, C[exclude_item(merge_item(X, A), B)]);
-          }
-          if (contains(tmp, A)) {
-            FD.emplace_back(exclude_item(X, A), A);
-          }
-        }
-        iter = L.erase(iter);
       } else {
         ++iter;
       }
