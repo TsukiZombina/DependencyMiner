@@ -2,6 +2,7 @@
 #include <vector>
 #include <cmath>
 #include <iostream>
+#include <algorithm>
 
 // HSet for "hashable set"
 class HSet {
@@ -43,6 +44,13 @@ public:
   HSet remove(int idx) {
     auto buf = data;
     buf.erase(std::find(buf.begin(), buf.end(), idx));
+    return HSet(buf);
+  }
+
+  HSet merge(int idx) {
+    auto buf = data;
+    buf.push_back(idx);
+    std::sort(buf.begin(), buf.end());
     return HSet(buf);
   }
 };

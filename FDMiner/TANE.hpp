@@ -141,7 +141,7 @@ public:
     while (!L.empty()) {
       std::cout << depth << std::endl;
       compute_dependencies();
-      // TODO: prune
+      prune();
       generate_next_level();
       ++depth;
     }
@@ -172,6 +172,7 @@ public:
           auto buffer = X.data;
           buffer.push_back(A);
           FD.emplace_back(std::move(buffer));
+          C[X.code].erase(std::find(C[X.code].begin(), C[X.code].end(), A));
           // remove all B in R \ X from C
           for (auto iter = C[X.code].begin(); iter != C[X.code].end(); ) {
             if (!X.contains(*iter)) { // then *iter \in R\X
@@ -227,5 +228,35 @@ public:
       ret.push_back(i);
     }
     return ret;
+  }
+
+  void prune() {
+    for (auto iter = L.begin(); iter != L.end(); ) {
+      auto& X = *iter;
+      if (C[X.code].empty()) {
+        iter = L.erase(iter);
+      } else if (set_part_map[X.code].empty()) { // superKey
+        for (auto A: C[X.code]) {
+          auto intersect = full_set();
+          for (auto B: X.data) {
+            std::vector<int> tmp;
+            auto constructed = X.merge(A).remove(B);
+            std::set_intersection(intersect.begin(), intersect.end(),
+                                  constructed.data.begin(), constructed.data.end(),
+                                  std::back_inserter(tmp));
+            intersect = std::move(tmp);
+          }
+          auto tmpset = HSet(intersect);
+          if (tmpset.contains(A)) {
+            auto dependency = X.data;
+            dependency.push_back(A);
+            FD.emplace_back(dependency);
+          }
+        }
+        iter = L.erase(iter);
+      } else {
+        ++iter;
+      }
+    }
   }
 };
