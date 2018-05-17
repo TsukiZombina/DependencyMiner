@@ -35,4 +35,14 @@ public:
       code += std::pow(2, item);
     }
   }
+
+  bool contains(int idx) {
+    return (std::find(data.begin(), data.end(), idx) != data.end());
+  }
+
+  HSet remove(int idx) {
+    auto buf = data;
+    buf.erase(std::find(buf.begin(), buf.end(), idx));
+    return HSet(buf);
+  }
 };

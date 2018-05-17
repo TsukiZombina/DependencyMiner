@@ -16,7 +16,12 @@ public:
   std::vector<std::vector<int>> data;
   std::vector<int> T;
   std::unordered_map<int, std::vector<int>> C;
-  std::vector<HSet> level;
+  std::vector<HSet> L;
+  // partitions with respect to a column set
+  std::unordered_map<int, Partition> set_part_map;
+  // last item is rhs
+  // note rhs is not excluded
+  std::vector<std::vector<int>> FD;
 
   int nrow;
   int ncol;
@@ -34,10 +39,10 @@ public:
   void generate_next_level() {
     std::vector<HSet> new_level;
     std::unordered_set<int> visited;
-    for (int i = 0; i < level.size(); ++i) {
-      for (int j = i + 1; j < level.size(); ++j) {
-        auto& s1 = level[i];
-        auto& s2 = level[j];
+    for (int i = 0; i < L.size(); ++i) {
+      for (int j = i + 1; j < L.size(); ++j) {
+        auto& s1 = L[i];
+        auto& s2 = L[j];
         // compute how many bits are different
         auto diff = count_ones(s1.code ^ s2.code);
         if (diff == 2) {
@@ -49,11 +54,13 @@ public:
           if (visited.find(hset.code) == visited.end()) {
             visited.insert(hset.code);
             new_level.emplace_back(hset);
+            auto new_p = multiply_partitions(set_part_map[s1.code], set_part_map[s2.code]);
+            set_part_map[hset.code] = std::move(new_p);
           }
         }
       }
     }
-    level = std::move(new_level);
+    L = std::move(new_level);
   }
 
   // compute partition with respoect to a single column
@@ -109,13 +116,17 @@ public:
     return ret;
   }
 
-  std::vector<std::vector<int>> mine_fd() {
-    C.clear();
-
+  void mine_fd() {
     // L_1 := {{A} | A \in R}
-    std::vector<HSet> level;
+    L.clear();
     for (int i = 0; i < ncol; ++i) {
-      level.emplace_back(i);
+      L.emplace_back(i);
+    }
+
+    // init partitions
+    set_part_map.clear();
+    for (auto hset: L) {
+      set_part_map[hset.code] = std::move(compute_partitions(hset.data[0]));
     }
 
     // C(\empty) := R
@@ -123,12 +134,76 @@ public:
     for (int i = 0; i < ncol; ++i) {
       R.push_back(i);
     }
+    C.clear();
     C[0] = std::move(R);
 
-    while (!level.empty()) {
-      // line 6
+    int depth = 0;
+    while (!L.empty()) {
+      std::cout << depth << std::endl;
+      compute_dependencies();
+      // TODO: prune
+      generate_next_level();
+      ++depth;
     }
+  }
 
+  void compute_dependencies() {
+    for (auto X: L) {
+      C[X.code] = std::move(full_set());
+      std::vector<int> buffer;
+      for (auto item: X.data) {
+        buffer.clear();
+        int X_without_A = X.code - std::pow(2, item);
+        std::set_intersection(C[X.code].begin(), C[X.code].end(),
+                              C[X_without_A].begin(), C[X_without_A].end(),
+                              std::back_inserter(buffer));
+        C[X.code] = std::move(buffer);
+      }
+    }
+    for (auto X: L) {
+      std::vector<int> R_minus_X;
+      std::vector<int> candidates;
+      std::set_intersection(C[X.code].begin(), C[X.code].end(),
+                            X.data.begin(), X.data.end(),
+                            std::back_inserter(candidates));
+      for (auto A: candidates) {
+        if (isValid(X, A)) {
+          // from line 6
+          auto buffer = X.data;
+          buffer.push_back(A);
+          FD.emplace_back(std::move(buffer));
+          // remove all B in R \ X from C
+          for (auto iter = C[X.code].begin(); iter != C[X.code].end(); ) {
+            if (!X.contains(*iter)) { // then *iter \in R\X
+              iter = C[X.code].erase(iter);
+            } else {
+              ++iter;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  bool isValid(HSet& bigX, int A) {
+    auto X = bigX.remove(A);
+    if (X.code == 0) {
+      return false;
+    }
+    if (compute_eX(X) == compute_eX(bigX)) {
+      return true;
+    }
+    return false;
+  }
+
+  int compute_eX(HSet& X) {
+    auto P = set_part_map[X.code];
+    int eX = 0;
+    for (auto e_class: P) {
+      eX += e_class.second.size();
+    }
+    eX -= P.size();
+    return eX;
   }
 
   void init_T() {
@@ -142,6 +217,14 @@ public:
     while (code) {
       code = code & (code - 1);
       ++ret;
+    }
+    return ret;
+  }
+
+  std::vector<int> full_set() {
+    std::vector<int> ret;
+    for (int i = 0; i < ncol; ++i) {
+      ret.push_back(i);
     }
     return ret;
   }

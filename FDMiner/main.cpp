@@ -5,6 +5,7 @@
 #include <unordered_set>
 #include <iostream>
 #include <vector>
+#include <fstream>
 
 void print_partition(TANE::Partition& p) {
     for (auto e_class: p) {
@@ -25,11 +26,11 @@ void test_generate_next_level() {
     for (auto h: tmp) {
         h.pretty_print();
     }
-    t.level = std::move(tmp);
-    while (!t.level.empty()) {
+    t.L = std::move(tmp);
+    while (!t.L.empty()) {
         std::cout << "==========================================\n";
         t.generate_next_level();
-        for (auto h: t.level) {
+        for (auto h: t.L) {
             h.pretty_print();
         }
     }
@@ -85,8 +86,27 @@ void test_Hset() {
     std::cout << h1.code << " " << h2.code << " " << h3.code << std::endl;
 }
 
+void test_mine_FD() {
+    std::string path = "./data/test_data.txt";
+    TANE t;
+    t.read_data(path);
+    t.mine_fd();
+
+    std::ofstream ofs("./data/output.txt");
+
+    for (auto item: t.FD) {
+        auto rhs = *(item.end() - 1);
+        for (auto col: item) {
+            if (col != rhs) {
+                ofs << col + 1 << " ";
+            }
+        }
+        ofs << "-> " << rhs + 1 << std::endl;
+    }
+}
+
 int main() {
-    test_generate_next_level();
+    test_mine_FD();
     system("pause");
     return 0;
 }
