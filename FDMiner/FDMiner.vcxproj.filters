@@ -22,4 +22,15 @@
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="TANE.hpp">
+      <Filter>源文件</Filter>
+    </ClInclude>
+    <ClInclude Include="reader.hpp">
+      <Filter>源文件</Filter>
+    </ClInclude>
+    <ClInclude Include="bitmap_set.hpp">
+      <Filter>源文件</Filter>
+    </ClInclude>
+  </ItemGroup>
 </Project>

@@ -118,6 +118,11 @@
     <ClCompile Include="DFD.hpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="bitmap_set.hpp" />
+    <ClInclude Include="reader.hpp" />
+    <ClInclude Include="TANE.hpp" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

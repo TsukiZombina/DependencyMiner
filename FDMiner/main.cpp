@@ -1,18 +1,48 @@
 #include "DFD.hpp"
 #include <ctime>
 #include <cassert>
+#include "TANE.hpp"
+#include <string>
+#include <fstream>
+
+void test_TANE() {
+    std::string path = "./data.txt";
+    TANE t;
+    t.read_data(path);
+    t.run();
+
+    std::ofstream ofs("./TANE_out.txt");
+
+    for (auto item: t.FD) {
+        auto lhs = decode_to_vector(item.first);
+        auto rhs = item.second;
+        for (auto col: lhs) {
+            if (col != rhs) {
+                ofs << col + 1 << " ";
+            }
+        }
+        ofs << "-> " << rhs + 1 << std::endl;
+    }
+}
+
+void test_DFD(bool test = false) {
+    srand(time(0));
+    if (test) {
+        DFD dfd("C:\\Users\\Vica\\Desktop\\test_data.txt", 100, 12);
+        dfd.extraction();
+        assert(dfd.getFD().size() == 109);
+        assert(dfd.getFD().at(48).at(0) == 5);
+        assert(dfd.getFD().at(48).at(1) == 11);
+        assert(dfd.getFD().at(48).at(2) == 12);
+    } else {
+        dfd.extraction();
+        std::ofstream os("C:\\Users\\Vica\\Desktop\\result.txt");
+        dfd.output(os);
+    }
+}
 
 int main() {
-    srand(time(0));
-    DFD dfd("C:\\Users\\Vica\\Desktop\\data.txt", 99918, 15);
-    //DFD dfd("C:\\Users\\Vica\\Desktop\\test_data.txt", 100, 12);
-    //DFD dfd("C:\\Users\\Vica\\Desktop\\trivia.txt", 8, 4);
-    std::ofstream os("C:\\Users\\Vica\\Desktop\\result.txt");
-    dfd.extraction();
-    dfd.output(os);
-    //assert(dfd.getFD().size() == 109);
-    //assert(dfd.getFD().at(48).at(0) == 5);
-    //assert(dfd.getFD().at(48).at(1) == 11);
-    //assert(dfd.getFD().at(48).at(2) == 12);
+    test_TANE();
+    //test_DFD();
     return 0;
 }
