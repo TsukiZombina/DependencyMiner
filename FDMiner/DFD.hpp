@@ -9,6 +9,8 @@
 #include <iostream>
 #include <algorithm>
 #include <set>
+#include <cassert>
+#include "reader.hpp"
 
 #define PROPOGATE
 //#define RANDOM
@@ -30,40 +32,13 @@ struct Node {
 
 class DFD {
 public:
-    DFD(std::string path, int size = -1, int ncol = -1) : size(size), ncol(ncol) {
-        if (size == -1) {
-            //calculate
-        }
-        if (ncol == -1) {
-            //calculate
-        }
+    DFD(std::string path) {
+        auto r = Reader(path);
+        data = std::move(r.data);
+        nrow = r.nrow;
+        ncol = r.ncol;
+        T.resize(nrow);
         tabu_for_unique_cols = 0;
-        for (int i = 0; i < ncol; ++i) {
-            data.push_back(std::vector<std::string>());
-            data.at(i).reserve(size);
-        }
-        std::ifstream in(path);
-        std::string buffer;
-        if (!in.is_open()) {
-            std::cout << "read file fail. Please check the path and retry/n";
-        }
-        for (int i = 0; i < size; ++i) {
-            std::getline(in, buffer);
-            int j = 0;
-            auto loc = buffer.find(',');
-            auto old = size_t(0);
-            while (loc != std::string::npos) {
-                if (buffer.at(loc + 1) == ' ') {
-                    loc = buffer.find(',', loc + 1);
-                } else {
-                    data.at(j).push_back(buffer.substr(old, loc - old));
-                    ++j;
-                    old = loc + 1;
-                    loc = buffer.find(',', loc + 1);
-                }
-            }
-            data.at(j).push_back(buffer.substr(old, loc - old));
-        }
         NodeSet.resize(BITMAP.at(ncol));
     }
 
@@ -82,7 +57,8 @@ public:
 
     void extraction() {
         for (int i = 0; i < ncol; ++i) {
-            if (std::unordered_set<std::string>(data.at(i).begin(), data.at(i).end()).size() == data.at(i).size()) {
+            set_part_map[BITMAP.at(i)] = std::move(one_column_partition(i));
+            if (set_part_map[BITMAP.at(i)].empty()) {
                 for (int j = 0; j < ncol; ++j) {
                     if (j != i) {
                         FD.push_back(std::vector<int>({ i + 1, j + 1 }));
@@ -124,8 +100,8 @@ public:
     }
 
 private:
-    std::vector<std::vector<std::string>> data;
-    int size;
+    std::vector<std::vector<int>> data;
+    int nrow;
     int ncol;
     int tabu_for_unique_cols;
     ColIndex current_rhs;
@@ -135,6 +111,10 @@ private:
     std::vector<NodeIndex> minDeps;
     std::vector<NodeIndex> maxNonDeps;
     std::stack<NodeIndex> trace;
+
+    using Partition = std::unordered_map<int, std::vector<int>>;
+    std::vector<int> T;
+    std::unordered_map<int, Partition> set_part_map;
 
     int getRandom(std::set<int>& S) {
         int idx = rand() % S.size(); // not equal prob but acceptable
@@ -195,7 +175,7 @@ private:
             bool reserve_it = true;
             for (auto iter = newSeeds.begin(); iter != newSeeds.end();) {
                 if ((*iter & x) == x) {
-                    newSeeds.erase(iter++);
+                    iter = newSeeds.erase(iter);
                 } else if ((*iter & x) == *iter) {
                     reserve_it = false;
                     break;
@@ -217,7 +197,9 @@ private:
         //seeds.insert(BITMAP.at(firstseed));
         //NodeIndex firstseed = ((1 << ncol) - 1) & ~(tabu_for_unique_cols | BITMAP.at(current_rhs));
         //seeds.insert(firstseed);
+        int cnt = 0;
         for (auto col : non_unique_cols) {
+            cnt++;
             if (col == current_rhs) continue;
             seeds.insert(BITMAP.at(col));
             while (!seeds.empty()) {
@@ -265,7 +247,7 @@ private:
             for (auto iter = S.begin(); iter != S.end();) {
                 if (NodeSet.at(*iter).isVisited) {
                     if (NodeSet.at(*iter).isNonDep) {
-                        S.erase(iter++);
+                        iter = S.erase(iter);
                     } else {
                         node.isCandidateMinDep = false;
                         S.clear();
@@ -296,7 +278,7 @@ private:
             for (auto iter = S.begin(); iter != S.end();) {
                 if (NodeSet.at(*iter).isVisited) {
                     if (NodeSet.at(*iter).isDep) {
-                        S.erase(iter++);
+                        iter = S.erase(iter);
                     } else {
                         node.isCandidateMaxNonDep = false;
                         break;
@@ -357,24 +339,37 @@ private:
     }
 
     bool checkFD(NodeIndex nodeID) {
-        std::unordered_map<std::string, std::string> dict;
-        auto lhs = getColIndexVector(nodeID);
-        bool isFD = true;
-        for (int i = 0; i < size; ++i) {
-            std::string l;
-            for (auto j : lhs) {
-                l += data.at(j).at(i) + ' ';
-            }
-            auto iter = dict.find(l);
-            if (iter == dict.end()) {
-                dict.insert(std::pair<std::string, std::string>(l, data.at(current_rhs).at(i)));
-            } else {
-                if (data.at(current_rhs).at(i) != iter->second) {
-                    isFD = false;
+        if (set_part_map.find(nodeID) == set_part_map.end()) {
+            std::set<NodeIndex> S;
+            subset(nodeID, S, 1);
+            int childNodeID = -1;
+            for (auto s : S) {
+                if (set_part_map.find(s) != set_part_map.end()) {
+                    childNodeID = s;
                     break;
                 }
             }
+            if (childNodeID != -1)
+                set_part_map[nodeID] = std::move(multiply_partitions(set_part_map[childNodeID], set_part_map[~childNodeID & nodeID]));
+            else {
+                auto lhs = getColIndexVector(nodeID);
+                auto e = BITMAP.at(lhs.back());
+                lhs.erase(lhs.end() - 1);
+                for (auto l : lhs) {
+                    auto x = BITMAP.at(l);
+                    if (set_part_map.find(e | x) == set_part_map.end()) {
+                        set_part_map[e | x] = std::move(multiply_partitions(set_part_map[e], set_part_map[x]));
+                    }
+                    e = e | x;
+                }
+                assert(e == nodeID);
+            }
         }
+        if (set_part_map.find(nodeID | BITMAP.at(current_rhs)) == set_part_map.end()) {
+            set_part_map[nodeID | BITMAP.at(current_rhs)] = std::move(multiply_partitions(set_part_map.at(nodeID), set_part_map.at(BITMAP.at(current_rhs))));
+        }
+        bool isFD = set_part_map[nodeID].size() == set_part_map[nodeID | BITMAP.at(current_rhs)].size();
+        
 #ifdef PROPOGATE
         if (isFD) { // could do more?
             std::set<NodeIndex> S;
@@ -436,5 +431,54 @@ private:
         node.isCandidateMinDep = check_result;
         node.isNonDep = !check_result;
         node.isCandidateMaxNonDep = !check_result;
+    }
+
+    Partition one_column_partition(int col) {
+        Partition ret;
+        for (int ridx = 0; ridx < data.size(); ++ridx) {
+            auto& row = data[ridx];
+            auto p = ret.find(row[col]);
+            if (p == ret.end()) {
+                ret[row[col]] = std::vector<int>{ ridx };
+            } else {
+                (p->second).push_back(ridx);
+            }
+        }
+        for (auto iter = ret.begin(); iter != ret.end(); ) {
+            if (iter->second.size() == 1) {
+                iter = ret.erase(iter);
+            } else {
+                ++iter;
+            }
+        }
+        return ret;
+    }
+
+    Partition multiply_partitions(Partition& lhs, Partition& rhs) {
+        Partition ret;
+        Partition S;
+        for (auto iter = T.begin(); iter != T.end(); ++iter) {
+            (*iter) = -1;
+        }
+        for (auto p : lhs) {
+            for (auto ridx : p.second) {
+                T[ridx] = p.first;
+            }
+            S[p.first] = std::vector<int>();
+        }
+        for (auto p : rhs) {
+            for (auto ridx : p.second) {
+                if (T[ridx] != -1) {
+                    S[T[ridx]].push_back(ridx);
+                }
+            }
+            for (auto ridx : p.second) {
+                if (S[T[ridx]].size() > 1) {
+                    ret[ret.size()] = std::move(S[T[ridx]]);
+                }
+                S[T[ridx]].clear();
+            }
+        }
+        return ret;
     }
 };
