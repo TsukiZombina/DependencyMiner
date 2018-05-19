@@ -102,6 +102,7 @@ public:
   std::vector<int> T;
   std::unordered_map<int, int> C;
   std::vector<int> L;
+  // TODO: remove useless members
   std::unordered_map<int, Partition> set_part_map;
   std::vector<std::pair<int, int>> FD;
 
@@ -170,6 +171,7 @@ public:
   }
 
   Partition multiply_partitions(Partition& lhs, Partition& rhs) {
+    // TODO: less new, use buffer
     Partition ret;
     Partition S;
     init_T();
@@ -256,6 +258,7 @@ public:
   }
 
   int compute_eX(int X) {
+    // TODO: use approximate eX
     auto P = set_part_map[X];
     int eX = 0;
     for (auto e_class: P) {
