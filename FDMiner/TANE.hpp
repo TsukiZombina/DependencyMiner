@@ -105,6 +105,9 @@ public:
   std::unordered_map<int, Partition> set_part_map;
   std::vector<std::pair<int, int>> FD;
 
+  Partition S; // serve as buffer for partition multiply
+  Partition product; // buffer
+
   int nrow;
   int ncol;
   int full_set;
@@ -138,8 +141,8 @@ public:
           if (visited.find(merged) == visited.end()) {
             visited.insert(merged);
             new_level.push_back(merged);
-            auto new_p = multiply_partitions(set_part_map[s1], set_part_map[s2]);
-            set_part_map[merged] = std::move(new_p);
+            multiply_partitions(set_part_map[s1], set_part_map[s2]);
+            set_part_map[merged].swap(product);
           }
         }
       }
@@ -166,9 +169,7 @@ public:
     return ret;
   }
 
-  Partition multiply_partitions(Partition& lhs, Partition& rhs) {
-    Partition ret;
-    Partition S;
+  void multiply_partitions(Partition& lhs, Partition& rhs) {
     init_T();
     int cidx = 0;
     for (auto p: lhs) {
@@ -176,7 +177,9 @@ public:
         T[ridx] = cidx;
       }
       ++cidx;
-      S.emplace_back();
+      if (S.size() < cidx) {
+        S.emplace_back();
+      }
     }
     for (auto p: rhs) {
       for (auto ridx: p) {
@@ -187,15 +190,14 @@ public:
       for (auto ridx: p) {
         if (T[ridx] != -1) {
           if (S[T[ridx]].size() > 1) {
-            ret.emplace_back();
-            ret[ret.size() - 1].swap(S[T[ridx]]);
+            product.emplace_back();
+            product[product.size() - 1].swap(S[T[ridx]]);
           } else {
             S[T[ridx]].clear();
           }
         }
       }
     }
-    return ret;
   }
 
   void run() {
