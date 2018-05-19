@@ -1,5 +1,5 @@
-path_a = './result.txt'
-path_b = './output.txt'
+path_a = '../result.txt'
+path_b = '../TANE_out.txt'
 
 with open(path_a) as f:
   lines_a = set(f.read().splitlines())

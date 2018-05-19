@@ -6,7 +6,7 @@
 #include <fstream>
 
 void test_TANE() {
-    std::string path = "./test_data.txt";
+    std::string path = "./data.txt";
     TANE t;
     t.read_data(path);
     t.run();
@@ -43,7 +43,7 @@ void test_DFD(bool test = false) {
 }
 
 int main() {
-    //test_TANE();
-    test_DFD(false);
+    test_TANE();
+    //test_DFD(false);
     return 0;
 }

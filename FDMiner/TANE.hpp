@@ -95,8 +95,7 @@ inline int difference(int code1, int code2) {
 
 class TANE {
 public:
-  // TODO: change this to vector of vector
-  using Partition = std::unordered_map<int, std::vector<int>>;
+  using Partition = std::vector<std::vector<int>>;
 
   std::vector<std::vector<int>> data;
   std::vector<int> T;
@@ -150,48 +149,50 @@ public:
 
   // compute partition with respoect to a single column
   Partition one_column_partition(int col) {
-    Partition ret;
+    Partition tmp;
     for (int ridx = 0; ridx < data.size(); ++ridx) {
-      auto& row = data[ridx];
-      auto p = ret.find(row[col]);
-      if (p == ret.end()) {
-        ret[row[col]] = std::vector<int>{ridx};
-      } else {
-        (p->second).push_back(ridx);
+      auto cat = data[ridx][col];
+      if (cat >= tmp.size()) {
+        tmp.emplace_back();
       }
+      tmp[cat].push_back(ridx);
     }
-    for (auto iter = ret.begin(); iter != ret.end(); ) {
-      if (iter->second.size() == 1) {
-        iter = ret.erase(iter);
-      } else {
-        ++iter;
+    Partition ret;
+    for (int i = 0; i < tmp.size(); ++i) {
+      if (tmp[i].size() > 1) {
+        ret.emplace_back(tmp[i]);
       }
     }
     return ret;
   }
 
   Partition multiply_partitions(Partition& lhs, Partition& rhs) {
-    // TODO: less new, use buffer
     Partition ret;
     Partition S;
     init_T();
+    int cidx = 0;
     for (auto p: lhs) {
-      for (auto ridx: p.second) {
-        T[ridx] = p.first;
+      for (auto ridx: p) {
+        T[ridx] = cidx;
       }
-      S[p.first] = std::vector<int>();
+      ++cidx;
+      S.emplace_back();
     }
     for (auto p: rhs) {
-      for (auto ridx: p.second) {
+      for (auto ridx: p) {
         if (T[ridx] != -1) {
           S[T[ridx]].push_back(ridx);
         }
       }
-      for (auto ridx: p.second) {
-        if (S[T[ridx]].size() > 1) {
-          ret[ret.size()] = std::move(S[T[ridx]]);
+      for (auto ridx: p) {
+        if (T[ridx] != -1) {
+          if (S[T[ridx]].size() > 1) {
+            ret.emplace_back();
+            ret[ret.size() - 1].swap(S[T[ridx]]);
+          } else {
+            S[T[ridx]].clear();
+          }
         }
-        S[T[ridx]].clear();
       }
     }
     return ret;
@@ -262,7 +263,7 @@ public:
     int eX = 0;
     for (auto e_class: P) {
       // TODO: we can memorize the sum here
-      eX += e_class.second.size();
+      eX += e_class.size();
     }
     eX -= P.size();
     return eX;
