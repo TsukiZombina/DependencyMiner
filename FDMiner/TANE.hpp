@@ -258,10 +258,10 @@ public:
   }
 
   int compute_eX(int X) {
-    // TODO: use approximate eX
     auto P = set_part_map[X];
     int eX = 0;
     for (auto e_class: P) {
+      // TODO: we can memorize the sum here
       eX += e_class.second.size();
     }
     eX -= P.size();
@@ -269,6 +269,8 @@ public:
   }
 
   void init_T() {
+    // TODO: we can avoid so much loop
+    // stripped partitions should has much less rows
     for (auto iter = T.begin(); iter != T.end(); ++iter) {
       (*iter) = -1;
     }
