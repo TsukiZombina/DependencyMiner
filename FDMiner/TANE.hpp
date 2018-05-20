@@ -218,7 +218,7 @@ public:
 
   inline void compute_dependencies() {
     for (int i = 0; i < L.size(); ++i) {
-      auto& X = L[i];
+      auto X = L[i];
       C[X] = full_set;
       auto Xset = decode_to_vector(X);
       for (int j = 0; j < Xset.size(); ++j) {
@@ -315,7 +315,7 @@ public:
 
     auto& lhs = set_part_map[source.first];
     auto& rhs = set_part_map[source.second];
-    set_part_map[X].reserve(12500);
+    set_part_map[X].reserve(15000);
     if (lhs.size() < rhs.size()) {
       multiply_partitions(lhs, rhs, set_part_map[X]);
     } else {

@@ -65,6 +65,7 @@ void test_TANE() {
     double total = 0;
     int loop = 10;
 
+    run_TANE(); // warm up
     for (int i = 0; i < loop; ++i) {
         double elapse = run_TANE();
         std::cout << "Time elapsed: " << elapse << std::endl;
