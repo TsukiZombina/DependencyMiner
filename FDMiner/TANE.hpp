@@ -172,6 +172,7 @@ public:
 
   void multiply_partitions(Partition& lhs, Partition& rhs) {
     int cidx = 0;
+    int start_idx = -1;
     for (auto p: lhs) {
       for (auto ridx: p) {
         T[ridx] = cidx;
@@ -179,6 +180,14 @@ public:
       ++cidx;
       if (S.size() < cidx) {
         S.emplace_back();
+        if (start_idx == -1) {
+          start_idx = cidx - 1;
+        }
+      }
+    }
+    if (start_idx != -1) {
+      for (int i = start_idx; i < S.size(); ++i) {
+        S[i].reserve(nrow * 2 / lhs.size());
       }
     }
     for (auto p: rhs) {
@@ -191,10 +200,9 @@ public:
         if (T[ridx] != -1) {
           if (S[T[ridx]].size() > 1) {
             product.emplace_back();
-            product[product.size() - 1].swap(S[T[ridx]]);
-          } else {
-            S[T[ridx]].clear();
+            product[product.size() - 1] = S[T[ridx]];
           }
+          S[T[ridx]].clear();
         }
       }
     }
