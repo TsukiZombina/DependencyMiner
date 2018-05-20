@@ -94,14 +94,13 @@ public:
   std::vector<int> T;
   std::unordered_map<int, int> C;
   std::vector<int> L;
-  // TODO: remove useless members
   std::unordered_map<int, Partition> set_part_map;
   std::vector<std::pair<int, int>> FD;
 
   std::unordered_map<int, std::pair<int, int>> parents;
   std::unordered_map<int, int> eX;
 
-  Partition S; // serve as buffer for partition multiply
+  Partition S;
 
   int nrow;
   int ncol;
@@ -121,6 +120,8 @@ public:
     for (int i = 0; i < ncol; ++i) {
       full_set = (full_set << 1) + 1;
     }
+
+    set_part_map.reserve(1500);
   }
 
   inline void generate_next_level() {
@@ -128,7 +129,6 @@ public:
     new_level.reserve(L.size() * L.size() / 2);
     std::unordered_set<int> visited;
     for (int i = 0; i < L.size(); ++i) {
-// #pragma omp parallel for
       for (int j = i + 1; j < L.size(); ++j) {
         auto s1 = L[i];
         auto s2 = L[j];
@@ -145,7 +145,6 @@ public:
     L = std::move(new_level);
   }
 
-  // compute partition with respoect to a single column
   inline Partition one_column_partition(int col) {
     Partition tmp;
     for (int ridx = 0; ridx < data.size(); ++ridx) {
@@ -166,8 +165,6 @@ public:
 
   inline void multiply_partitions(Partition& lhs, Partition& rhs, Partition& buf) {
     init_T();
-    // here para makes it slower
-    // #pragma omp parallel for
     for (int cidx = 0; cidx < lhs.size(); ++cidx) {
       auto& p = lhs[cidx];
       for (int i = 0; i < p.size(); ++i) {
@@ -240,7 +237,7 @@ public:
           auto CX_set = decode_to_vector(C[X]);
           for (int k = 0; k < CX_set.size(); ++k) {
             auto B = CX_set[k];
-            if (!contains(X, B)) { // B \in R\X
+            if (!contains(X, B)) {
               C[X] = exclude_item(C[X], B);
             }
           }
@@ -273,7 +270,6 @@ public:
     compute_partition_on_demand(X);
     auto P = set_part_map[X];
     int eX = 0;
-    // #pragma omp parallel for reduction(+:eX)
     for (int i = 0; i < P.size(); ++i) {
       eX += P[i].size();
     }
@@ -285,25 +281,9 @@ public:
     for (auto iter = T.begin(); iter != T.end(); ++iter) {
       (*iter) = -1;
     }
-
-    // slower
-    // #pragma omp parallel for
-    // for (int i = 0; i < T.size(); ++i) {
-    //   T[i] = -1;
-    // }
   }
 
   inline void prune() {
-    // std::vector<int> tmp;
-    // tmp.reserve(L.size());
-    // for (int i = 0; i < L.size(); ++i) {
-    //   if (C[L[i]]) {
-    //     tmp.push_back(L[i]);
-    //   }
-    // }
-    // L = std::move(tmp);
-
-    // erase on the fly seems to be faster
     for (auto iter = L.begin(); iter != L.end(); ) {
       auto X = *iter;
       if (!C[X]) {
@@ -332,8 +312,26 @@ public:
       }
     }
 
-    // compute_partition_on_demand(source.first);
-    // compute_partition_on_demand(source.second);
-    multiply_partitions(set_part_map[source.first], set_part_map[source.second], set_part_map[X]);
+    auto& lhs = set_part_map[source.first];
+    auto& rhs = set_part_map[source.second];
+    if (lhs.size() < rhs.size()) {
+      multiply_partitions(lhs, rhs, set_part_map[X]);
+    } else {
+      multiply_partitions(rhs, lhs, set_part_map[X]);
+    }
+  }
+
+  void output(std::ostream& ofs) {
+    for (int i = 0; i < FD.size(); ++i) {
+      auto& item =FD[i];
+      auto lhs = decode_to_vector(item.first);
+      auto rhs = item.second;
+      for (auto col: lhs) {
+          if (col != rhs) {
+              ofs << col + 1 << " ";
+          }
+      }
+      ofs << "-> " << rhs + 1 << std::endl;
+    }
   }
 };
