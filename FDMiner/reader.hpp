@@ -16,6 +16,7 @@ public:
 
   Reader(std::string path) {
     // std::cout << "Reading data: " << path << std::endl;
+    data.reserve(100000);
     read_data(path);
   }
 
@@ -23,17 +24,20 @@ public:
     std::ifstream in(path);
     for (std::string line; std::getline(in, line); ) {
       // std::cout << "Processing line: " << line << std::endl;
-      data.emplace_back(parse_line(line));
+      data.emplace_back();
+      if (data.size() >= 1) {
+        data[data.size() - 1].reserve(data[0].size());
+      }
+      parse_line(line, data[data.size() - 1]);
     }
     nrow = data.size();
     ncol = value_map.size();
   }
 
-  std::vector<int> parse_line(std::string& line) {
+  void parse_line(std::string& line, std::vector<int>& row) {
     int left = 0;
     int right = 0;
     int col_idx = 0;
-    std::vector<int> row;
     while (right < line.length()) {
       if (line[right] == ',' && line[right + 1] != ' ') {
         // a new column
@@ -49,12 +53,12 @@ public:
     auto value = line.substr(left, right - left);
     auto code = hash(value, col_idx);
     row.push_back(code);
-    return row;
   }
 
   int hash(std::string& value, int col_idx) {
     if (col_idx >= value_map.size()) {
       value_map.emplace_back(std::unordered_map<std::string, int>());
+      value_map[value_map.size() - 1].reserve(100000);
     }
     auto iter = value_map[col_idx].find(value);
     if (iter != value_map[col_idx].end()) {
