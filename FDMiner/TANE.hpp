@@ -109,7 +109,6 @@ public:
   std::unordered_map<int, int> eX;
 
   Partition S; // serve as buffer for partition multiply
-  Partition product; // buffer
 
   int nrow;
   int ncol;
@@ -117,23 +116,21 @@ public:
 
   TANE () = default;
 
-  void read_data(std::string& path) {
+  inline void read_data(std::string& path) {
     auto r = Reader(path);
     data = std::move(r.data);
     nrow = r.nrow;
     ncol = r.ncol;
 
     T.resize(nrow);
-    init_T();
 
     full_set = 0;
-    // memset(&full_set, 1, sizeof(int));
     for (int i = 0; i < ncol; ++i) {
       full_set = (full_set << 1) + 1;
     }
   }
 
-  void generate_next_level() {
+  inline void generate_next_level() {
     std::vector<int> new_level;
     std::unordered_set<int> visited;
     for (int i = 0; i < L.size(); ++i) {
@@ -154,7 +151,7 @@ public:
   }
 
   // compute partition with respoect to a single column
-  Partition one_column_partition(int col) {
+  inline Partition one_column_partition(int col) {
     Partition tmp;
     for (int ridx = 0; ridx < data.size(); ++ridx) {
       auto cat = data[ridx][col];
@@ -172,9 +169,9 @@ public:
     return ret;
   }
 
-  void multiply_partitions(Partition& lhs, Partition& rhs) {
+  inline void multiply_partitions(Partition& lhs, Partition& rhs, Partition& buf) {
+    init_T();
     int cidx = 0;
-    int start_idx = -1;
     for (auto p: lhs) {
       for (auto ridx: p) {
         T[ridx] = cidx;
@@ -182,14 +179,6 @@ public:
       ++cidx;
       if (S.size() < cidx) {
         S.emplace_back();
-        if (start_idx == -1) {
-          start_idx = cidx - 1;
-        }
-      }
-    }
-    if (start_idx != -1) {
-      for (int i = start_idx; i < S.size(); ++i) {
-        S[i].reserve(nrow * 2 / lhs.size());
       }
     }
     for (auto p: rhs) {
@@ -201,19 +190,16 @@ public:
       for (auto ridx: p) {
         if (T[ridx] != -1) {
           if (S[T[ridx]].size() > 1) {
-            product.emplace_back();
-            product[product.size() - 1] = S[T[ridx]];
+            buf.emplace_back();
+            buf[buf.size() - 1] = S[T[ridx]];
           }
           S[T[ridx]].clear();
         }
       }
     }
-    for (auto iter = T.begin(); iter != T.end(); ++iter) {
-      *iter = -1;
-    }
   }
 
-  void run() {
+  inline void run() {
     L.clear();
     for (int i = 0; i < ncol; ++i) {
       L.emplace_back(encode(i));
@@ -233,7 +219,7 @@ public:
     }
   }
 
-  void compute_dependencies() {
+  inline void compute_dependencies() {
     for (auto X: L) {
       C[X] = full_set;
       auto Xset = decode_to_vector(X);
@@ -259,7 +245,7 @@ public:
     }
   }
 
-  bool isValid(int bigX, int A) {
+  inline bool isValid(int bigX, int A) {
     auto X = exclude_item(bigX, A);
     if (!X) {
       return false;
@@ -270,7 +256,7 @@ public:
     return false;
   }
 
-  int get_eX(int X) {
+  inline int get_eX(int X) {
     if (eX.find(X) != eX.end()) {
       return eX[X];
     }
@@ -279,27 +265,24 @@ public:
     return tmp;
   }
 
-  int compute_eX(int X) {
+  inline int compute_eX(int X) {
     compute_partition_on_demand(X);
     auto P = set_part_map[X];
     int eX = 0;
     for (auto e_class: P) {
-      // TODO: we can memorize the sum here
       eX += e_class.size();
     }
     eX -= P.size();
     return eX;
   }
 
-  void init_T() {
-    // TODO: we can avoid so much loop
-    // stripped partitions should has much less rows
+  inline void init_T() {
     for (auto iter = T.begin(); iter != T.end(); ++iter) {
       (*iter) = -1;
     }
   }
 
-  void prune() {
+  inline void prune() {
     for (auto iter = L.begin(); iter != L.end(); ) {
       auto X = *iter;
       if (!C[X]) {
@@ -310,14 +293,13 @@ public:
     }
   }
 
-  void compute_partition_on_demand(int X) {
+  inline void compute_partition_on_demand(int X) {
     if (set_part_map.find(X) != set_part_map.end()) {
       return;
     }
     auto& source = parents[X];
     compute_partition_on_demand(source.first);
     compute_partition_on_demand(source.second);
-    multiply_partitions(set_part_map[source.first], set_part_map[source.second]);
-    set_part_map[X].swap(product);
+    multiply_partitions(set_part_map[source.first], set_part_map[source.second], set_part_map[X]);
   }
 };
