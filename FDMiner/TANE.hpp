@@ -121,6 +121,7 @@ public:
     ncol = r.ncol;
 
     T.resize(nrow);
+    init_T();
 
     full_set = 0;
     // memset(&full_set, 1, sizeof(int));
@@ -170,7 +171,6 @@ public:
   }
 
   void multiply_partitions(Partition& lhs, Partition& rhs) {
-    init_T();
     int cidx = 0;
     for (auto p: lhs) {
       for (auto ridx: p) {
@@ -197,6 +197,9 @@ public:
           }
         }
       }
+    }
+    for (auto iter = T.begin(); iter != T.end(); ++iter) {
+      *iter = -1;
     }
   }
 
