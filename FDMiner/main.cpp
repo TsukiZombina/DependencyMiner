@@ -4,8 +4,9 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <vector>
 
-void test_TANE() {
+void run_TANE() {
     std::string path = "./data.txt";
     TANE t;
     t.read_data(path);
@@ -42,13 +43,46 @@ void test_DFD(bool test = false) {
     }
 }
 
-int main() {
+void test_speed() {
+    std::vector<int> T(1000000000);
     clock_t start, end;
+
     start = clock();
-    test_TANE();
-    //test_DFD(false);
+    for (int i = 0; i < T.size(); ++i) {
+        T[i] = 1;
+    }
     end = clock();
     std::cout << "Time elapsed: " << (double)(end - start) / CLOCKS_PER_SEC << std::endl;
+
+    start = clock();
+    for (auto i = T.begin(); i != T.end(); ++i) {
+        *i = -1;
+    }
+    end = clock();
+    std::cout << "Time elapsed: " << (double)(end - start) / CLOCKS_PER_SEC << std::endl;
+
+}
+
+void test_TANE() {
+    double total = 0;
+    int loop = 10;
+
+    for (int i = 0; i < loop; ++i) {
+        clock_t start, end;
+        start = clock();
+        run_TANE();
+        end = clock();
+        double diff = (double)(end - start) / CLOCKS_PER_SEC;
+        std::cout << "Time elapsed: " << diff << std::endl;
+        total += diff;
+    }
+    total /= loop;
+    std::cout << "Average: " << total << std::endl;
     system("pause");
+}
+
+int main() {
+    // test_TANE();
+    run_TANE();
     return 0;
 }

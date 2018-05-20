@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <iterator>
 #include <utility>
+#include <omp.h>
 #include "reader.hpp"
 
 inline int encode(int item) {
@@ -15,16 +16,8 @@ inline int encode(int item) {
 
 inline int encode(std::vector<int>& items) {
   int code = 0;
-  for (auto item: items) {
-    code += std::pow(2, item);
-  }
-  return code;
-}
-
-inline int encode(std::unordered_set<int>& items) {
-  int code = 0;
-  for (auto item: items) {
-    code += std::pow(2, item);
+  for (int i = 0; i < items.size(); ++i) {
+    code += std::pow(2, items[i]);
   }
   return code;
 }
@@ -132,8 +125,10 @@ public:
 
   inline void generate_next_level() {
     std::vector<int> new_level;
+    new_level.reserve(L.size() * L.size() / 2);
     std::unordered_set<int> visited;
     for (int i = 0; i < L.size(); ++i) {
+// #pragma omp parallel for
       for (int j = i + 1; j < L.size(); ++j) {
         auto s1 = L[i];
         auto s2 = L[j];
@@ -171,23 +166,27 @@ public:
 
   inline void multiply_partitions(Partition& lhs, Partition& rhs, Partition& buf) {
     init_T();
-    int cidx = 0;
-    for (auto p: lhs) {
-      for (auto ridx: p) {
-        T[ridx] = cidx;
-      }
-      ++cidx;
-      if (S.size() < cidx) {
-        S.emplace_back();
+    // here para makes it slower
+    // #pragma omp parallel for
+    for (int cidx = 0; cidx < lhs.size(); ++cidx) {
+      auto& p = lhs[cidx];
+      for (int i = 0; i < p.size(); ++i) {
+        T[p[i]] = cidx;
       }
     }
-    for (auto p: rhs) {
-      for (auto ridx: p) {
+    while (S.size() < lhs.size()) {
+      S.emplace_back();
+    }
+    for (int cidx = 0; cidx < rhs.size(); ++cidx) {
+      auto& p = rhs[cidx];
+      for (int i = 0; i < p.size(); ++i) {
+        auto ridx = p[i];
         if (T[ridx] != -1) {
           S[T[ridx]].push_back(ridx);
         }
       }
-      for (auto ridx: p) {
+      for (int i = 0; i < p.size(); ++i) {
+        auto ridx = p[i];
         if (T[ridx] != -1) {
           if (S[T[ridx]].size() > 1) {
             buf.emplace_back();
@@ -220,22 +219,27 @@ public:
   }
 
   inline void compute_dependencies() {
-    for (auto X: L) {
+    for (int i = 0; i < L.size(); ++i) {
+      auto& X = L[i];
       C[X] = full_set;
       auto Xset = decode_to_vector(X);
-      for (auto A: Xset) {
+      for (int j = 0; j < Xset.size(); ++j) {
+        auto A = Xset[j];
         int X_without_A = exclude_item(X, A);
         C[X] = intersect(C[X], C[X_without_A]);
       }
     }
-    for (auto X: L) {
+    for (int i = 0; i < L.size(); ++i) {
+      auto& X = L[i];
       auto candidates = decode_to_vector(intersect(X, C[X]));
-      for (auto A: candidates) {
+      for (int j = 0; j < candidates.size(); ++j) {
+        auto A = candidates[j];
         if (isValid(X, A)) {
           FD.emplace_back(exclude_item(X, A), A);
           C[X] = exclude_item(C[X], A);
           auto CX_set = decode_to_vector(C[X]);
-          for (auto B: CX_set) {
+          for (int k = 0; k < CX_set.size(); ++k) {
+            auto B = CX_set[k];
             if (!contains(X, B)) { // B \in R\X
               C[X] = exclude_item(C[X], B);
             }
@@ -269,8 +273,9 @@ public:
     compute_partition_on_demand(X);
     auto P = set_part_map[X];
     int eX = 0;
-    for (auto e_class: P) {
-      eX += e_class.size();
+    // #pragma omp parallel for reduction(+:eX)
+    for (int i = 0; i < P.size(); ++i) {
+      eX += P[i].size();
     }
     eX -= P.size();
     return eX;
@@ -280,9 +285,25 @@ public:
     for (auto iter = T.begin(); iter != T.end(); ++iter) {
       (*iter) = -1;
     }
+
+    // slower
+    // #pragma omp parallel for
+    // for (int i = 0; i < T.size(); ++i) {
+    //   T[i] = -1;
+    // }
   }
 
   inline void prune() {
+    // std::vector<int> tmp;
+    // tmp.reserve(L.size());
+    // for (int i = 0; i < L.size(); ++i) {
+    //   if (C[L[i]]) {
+    //     tmp.push_back(L[i]);
+    //   }
+    // }
+    // L = std::move(tmp);
+
+    // erase on the fly seems to be faster
     for (auto iter = L.begin(); iter != L.end(); ) {
       auto X = *iter;
       if (!C[X]) {
@@ -298,8 +319,21 @@ public:
       return;
     }
     auto& source = parents[X];
-    compute_partition_on_demand(source.first);
-    compute_partition_on_demand(source.second);
+
+    #pragma omp sections
+    {
+      #pragma omp section
+      {
+        compute_partition_on_demand(source.first);
+      }
+      #pragma omp section
+      {
+        compute_partition_on_demand(source.second);
+      }
+    }
+
+    // compute_partition_on_demand(source.first);
+    // compute_partition_on_demand(source.second);
     multiply_partitions(set_part_map[source.first], set_part_map[source.second], set_part_map[X]);
   }
 };
