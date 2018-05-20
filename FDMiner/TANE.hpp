@@ -105,6 +105,8 @@ public:
   std::unordered_map<int, Partition> set_part_map;
   std::vector<std::pair<int, int>> FD;
 
+  std::unordered_map<int, std::pair<int, int>> parents;
+
   Partition S; // serve as buffer for partition multiply
   Partition product; // buffer
 
@@ -142,8 +144,7 @@ public:
           if (visited.find(merged) == visited.end()) {
             visited.insert(merged);
             new_level.push_back(merged);
-            multiply_partitions(set_part_map[s1], set_part_map[s2]);
-            set_part_map[merged].swap(product);
+            parents[merged] = std::make_pair(s1, s2);
           }
         }
       }
@@ -269,6 +270,7 @@ public:
   }
 
   int compute_eX(int X) {
+    compute_partition_on_demand(X);
     auto P = set_part_map[X];
     int eX = 0;
     for (auto e_class: P) {
@@ -296,5 +298,16 @@ public:
         ++iter;
       }
     }
+  }
+
+  void compute_partition_on_demand(int X) {
+    if (set_part_map.find(X) != set_part_map.end()) {
+      return;
+    }
+    auto& source = parents[X];
+    compute_partition_on_demand(source.first);
+    compute_partition_on_demand(source.second);
+    multiply_partitions(set_part_map[source.first], set_part_map[source.second]);
+    set_part_map[X].swap(product);
   }
 };
