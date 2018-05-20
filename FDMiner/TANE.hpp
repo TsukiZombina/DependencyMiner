@@ -103,8 +103,6 @@ public:
 
   Partition S; // serve as buffer for partition multiply
 
-  omp_lock_t gen_lev_lock;
-
   int nrow;
   int ncol;
   int full_set;
@@ -126,8 +124,6 @@ public:
   }
 
   inline void generate_next_level() {
-    omp_init_lock(&gen_lev_lock);
-
     std::vector<int> new_level;
     new_level.reserve(L.size() * L.size() / 2);
     std::unordered_set<int> visited;
@@ -140,15 +136,8 @@ public:
           int merged = merge_set(s1, s2);
           if (visited.find(merged) == visited.end()) {
             visited.insert(merged);
-
-            // we don't need to lock visited
-            // because parallel in j will neve produce same merge
-            // omp_set_lock(&gen_lev_lock);
-
             new_level.push_back(merged);
             parents[merged] = std::make_pair(s1, s2);
-
-            // omp_unset_lock(&gen_lev_lock);
           }
         }
       }
@@ -284,6 +273,7 @@ public:
     compute_partition_on_demand(X);
     auto P = set_part_map[X];
     int eX = 0;
+    // #pragma omp parallel for reduction(+:eX)
     for (int i = 0; i < P.size(); ++i) {
       eX += P[i].size();
     }
@@ -295,9 +285,25 @@ public:
     for (auto iter = T.begin(); iter != T.end(); ++iter) {
       (*iter) = -1;
     }
+
+    // slower
+    // #pragma omp parallel for
+    // for (int i = 0; i < T.size(); ++i) {
+    //   T[i] = -1;
+    // }
   }
 
   inline void prune() {
+    // std::vector<int> tmp;
+    // tmp.reserve(L.size());
+    // for (int i = 0; i < L.size(); ++i) {
+    //   if (C[L[i]]) {
+    //     tmp.push_back(L[i]);
+    //   }
+    // }
+    // L = std::move(tmp);
+
+    // erase on the fly seems to be faster
     for (auto iter = L.begin(); iter != L.end(); ) {
       auto X = *iter;
       if (!C[X]) {
@@ -313,8 +319,21 @@ public:
       return;
     }
     auto& source = parents[X];
-    compute_partition_on_demand(source.first);
-    compute_partition_on_demand(source.second);
+
+    #pragma omp sections
+    {
+      #pragma omp section
+      {
+        compute_partition_on_demand(source.first);
+      }
+      #pragma omp section
+      {
+        compute_partition_on_demand(source.second);
+      }
+    }
+
+    // compute_partition_on_demand(source.first);
+    // compute_partition_on_demand(source.second);
     multiply_partitions(set_part_map[source.first], set_part_map[source.second], set_part_map[X]);
   }
 };
