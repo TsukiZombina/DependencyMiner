@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <vector>
 
 void test_TANE() {
     std::string path = "./data.txt";
@@ -42,13 +43,33 @@ void test_DFD(bool test = false) {
     }
 }
 
-int main() {
+void test_speed() {
+    std::vector<int> T(1000000000);
     clock_t start, end;
+
     start = clock();
-    test_TANE();
-    //test_DFD(false);
+    for (int i = 0; i < T.size(); ++i) {
+        T[i] = 1;
+    }
     end = clock();
     std::cout << "Time elapsed: " << (double)(end - start) / CLOCKS_PER_SEC << std::endl;
+
+    start = clock();
+    for (auto i = T.begin(); i != T.end(); ++i) {
+        *i = -1;
+    }
+    end = clock();
+    std::cout << "Time elapsed: " << (double)(end - start) / CLOCKS_PER_SEC << std::endl;
+
+}
+
+int main() {
+     clock_t start, end;
+     start = clock();
+     test_TANE();
+     //test_DFD(false);
+     end = clock();
+     std::cout << "Time elapsed: " << (double)(end - start) / CLOCKS_PER_SEC << std::endl;
     system("pause");
     return 0;
 }
