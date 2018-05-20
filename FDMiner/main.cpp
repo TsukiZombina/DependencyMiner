@@ -1,7 +1,7 @@
 #include "DFD.hpp"
-#include <ctime>
-#include <cassert>
 #include "TANE.hpp"
+#include <ctime>
+#include <iostream>
 #include <string>
 #include <fstream>
 
@@ -43,7 +43,12 @@ void test_DFD(bool test = false) {
 }
 
 int main() {
+    clock_t start, end;
+    start = clock();
     test_TANE();
     //test_DFD(false);
+    end = clock();
+    std::cout << "Time elapsed: " << (double)(end - start) / CLOCKS_PER_SEC << std::endl;
+    system("pause");
     return 0;
 }

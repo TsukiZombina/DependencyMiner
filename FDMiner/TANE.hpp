@@ -216,13 +216,10 @@ public:
 
     C[0] = full_set;
 
-    int depth = 0;
     while (!L.empty()) {
-      std::cout << depth << std::endl;
       compute_dependencies();
       prune();
       generate_next_level();
-      ++depth;
     }
   }
 
