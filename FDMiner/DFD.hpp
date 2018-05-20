@@ -21,7 +21,6 @@ typedef int ColIndex;
 const std::vector<ColIndex> BITMAP({ 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768 });
 
 struct Node {
-    //std::vector<int> LHS;
     bool isVisited = false;
     bool isDep = false;
     bool isMinDep = false;
@@ -44,7 +43,7 @@ public:
     }
 
     void output(std::ostream& out) {
-        for (auto fd : FD) {
+        for (auto& fd : FD) {
             std::string result;
             for (auto x : fd) {
                 result += std::to_string(x);
@@ -57,6 +56,8 @@ public:
     }
 
     void extraction() {
+#pragma omp parallel
+#pragma omp for
         for (int i = 0; i < ncol; ++i) {
             set_part_map[BITMAP.at(i)] = std::move(one_column_partition(i));
             if (set_part_map[BITMAP.at(i)].empty()) {
@@ -70,6 +71,11 @@ public:
                 non_unique_cols.push_back(i);
             }
         }
+        //for (int i = 0; i < non_unique_cols.size(); ++i) {
+        //    for (int j = i + 1; j < non_unique_cols.size(); ++j) {
+        //        multiply_partitions(set_part_map[BITMAP.at(i)], set_part_map[BITMAP.at(j)], set_part_map[BITMAP.at(i) | BITMAP.at(j)]);
+        //    }
+        //}
         for (int i = 0; i < ncol; ++i) {
             current_rhs = i;
             findLHSs();
@@ -92,7 +98,7 @@ public:
                 ++iter1;
                 ++iter2;
             }
-            return(iter2 != rhs.end()); // lhs shorter return true
+            return(iter2 != rhs.end());
         });
     }
 
@@ -118,8 +124,6 @@ private:
     std::unordered_map<int, int> C;
     std::vector<int> L;
     std::unordered_map<int, Partition> set_part_map;
-    std::unordered_map<int, std::pair<int, int>> parents;
-    std::unordered_map<int, int> eX;
     Partition S;
 
     int getRandom(std::set<int>& S) {
@@ -199,13 +203,7 @@ private:
     void findLHSs() {
         if (non_unique_cols.size() < 2) return;
         std::set<NodeIndex> seeds;
-        //NodeIndex firstseed = non_unique_cols.at(0) == current_rhs ? non_unique_cols.at(1) : non_unique_cols.at(0); // should random?
-        //seeds.insert(BITMAP.at(firstseed));
-        //NodeIndex firstseed = ((1 << ncol) - 1) & ~(tabu_for_unique_cols | BITMAP.at(current_rhs));
-        //seeds.insert(firstseed);
-        int cnt = 0;
         for (auto col : non_unique_cols) {
-            cnt++;
             if (col == current_rhs) continue;
             seeds.insert(BITMAP.at(col));
             while (!seeds.empty()) {
@@ -229,7 +227,6 @@ private:
                                     maxNonDeps.push_back(nodeID);
                                 }
                             }
-                            //updateDependencyType(node);
                         }
                     } else {
                         if (!inferCategory(nodeID)) {
@@ -239,8 +236,6 @@ private:
                     nodeID = pickNextNode(nodeID);
                 }
                 seeds = generateNextSeeds();
-                //auto tmp = generateNextSeeds();
-                //seeds.insert(tmp.begin(), tmp.end());
             }
         }
     }
@@ -249,7 +244,7 @@ private:
         auto& node = NodeSet.at(nodeID);
         if (node.isCandidateMinDep) {
             std::set<NodeIndex> S;
-            subset(nodeID, S, 1); // Not sure whether I understand it correctly
+            subset(nodeID, S, 1);
             for (auto iter = S.begin(); iter != S.end();) {
                 if (NodeSet.at(*iter).isVisited) {
                     if (NodeSet.at(*iter).isNonDep) {
@@ -457,24 +452,27 @@ private:
     }
 
     inline void multiply_partitions(Partition& lhs, Partition& rhs, Partition& buf) {
-        init_T();
+        std::fill(T.begin(), T.end(), -1);
         int cidx = 0;
-        for (auto p : lhs) {
-            for (auto ridx : p) {
-                T[ridx] = cidx;
-            }
-            ++cidx;
-            if (S.size() < cidx) {
-                S.emplace_back();
+        for (int cidx = 0; cidx < lhs.size(); ++cidx) {
+            auto& p = lhs[cidx];
+            for (int i = 0; i < p.size(); ++i) {
+                T[p[i]] = cidx;
             }
         }
-        for (auto p : rhs) {
-            for (auto ridx : p) {
+        while (S.size() < lhs.size()) {
+            S.emplace_back();
+        }
+        for (int cidx = 0; cidx < rhs.size(); ++cidx) {
+            auto& p = rhs[cidx];
+            for (int i = 0; i < p.size(); ++i) {
+                auto ridx = p[i];
                 if (T[ridx] != -1) {
                     S[T[ridx]].push_back(ridx);
                 }
             }
-            for (auto ridx : p) {
+            for (int i = 0; i < p.size(); ++i) {
+                auto ridx = p[i];
                 if (T[ridx] != -1) {
                     if (S[T[ridx]].size() > 1) {
                         buf.emplace_back();
@@ -486,9 +484,4 @@ private:
         }
     }
 
-    inline void init_T() {
-        for (auto iter = T.begin(); iter != T.end(); ++iter) {
-            (*iter) = -1;
-        }
-    }
 };

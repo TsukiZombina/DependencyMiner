@@ -26,7 +26,7 @@ void run_TANE() {
     }
 }
 
-void test_DFD(bool test = false) {
+void run_DFD(bool test = false) {
     srand(time(0));
     if (test) {
         DFD dfd("./test_data.txt");
@@ -81,8 +81,26 @@ void test_TANE() {
     system("pause");
 }
 
+void test_DFD() {
+    double total = 0;
+    int loop = 10;
+
+    for (int i = 0; i < loop; ++i) {
+        clock_t start, end;
+        start = clock();
+        run_DFD(false);
+        end = clock();
+        double diff = (double)(end - start) / CLOCKS_PER_SEC;
+        std::cout << "Time elapsed: " << diff << std::endl;
+        total += diff;
+    }
+    total /= loop;
+    std::cout << "Average: " << total << std::endl;
+    system("pause");
+}
+
 int main() {
-    // test_TANE();
-    run_TANE();
+    test_DFD();
+    test_TANE();
     return 0;
 }
