@@ -164,6 +164,7 @@ public:
   }
 
   inline void multiply_partitions(Partition& lhs, Partition& rhs, Partition& buf) {
+    buf.reserve(150);
     init_T();
     for (int cidx = 0; cidx < lhs.size(); ++cidx) {
       auto& p = lhs[cidx];
@@ -268,7 +269,7 @@ public:
 
   inline int compute_eX(int X) {
     compute_partition_on_demand(X);
-    auto P = set_part_map[X];
+    auto& P = set_part_map[X];
     int eX = 0;
     for (int i = 0; i < P.size(); ++i) {
       eX += P[i].size();
@@ -314,6 +315,7 @@ public:
 
     auto& lhs = set_part_map[source.first];
     auto& rhs = set_part_map[source.second];
+    set_part_map[X].reserve(12500);
     if (lhs.size() < rhs.size()) {
       multiply_partitions(lhs, rhs, set_part_map[X]);
     } else {
