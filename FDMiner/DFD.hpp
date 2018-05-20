@@ -2,11 +2,7 @@
 #include <string>
 #include <vector>
 #include <stack>
-#include <unordered_set>
 #include <unordered_map>
-#include <map>
-#include <fstream>
-#include <iostream>
 #include <algorithm>
 #include <set>
 #include <cassert>
@@ -40,6 +36,7 @@ public:
         T.resize(nrow);
         tabu_for_unique_cols = 0;
         NodeSet.resize(BITMAP.at(ncol));
+        set_part_map.reserve(1500);
     }
 
     void output(std::ostream& out) {
@@ -56,8 +53,6 @@ public:
     }
 
     void extraction() {
-#pragma omp parallel
-#pragma omp for
         for (int i = 0; i < ncol; ++i) {
             set_part_map[BITMAP.at(i)] = std::move(one_column_partition(i));
             if (set_part_map[BITMAP.at(i)].empty()) {
@@ -85,7 +80,18 @@ public:
                 fd.push_back(i + 1);
                 FD.emplace_back(fd);
             }
-            std::fill(NodeSet.begin(), NodeSet.end(), Node());
+            //std::fill(NodeSet.begin(), NodeSet.end(), Node());
+            for (auto& n : NodeSet) {
+                if (n.isVisited) {
+                    n.isVisited = false;
+                    n.isCandidateMinDep = true;
+                    n.isCandidateMaxNonDep = true;
+                    n.isDep = false;
+                    n.isNonDep = false;
+                    n.isMinDep = false;
+                    n.isMaxNonDep = false;
+                }
+            }
             minDeps.clear();
             maxNonDeps.clear();
         }
@@ -135,7 +141,7 @@ private:
         return *iter;
     }
 
-    void subset(int n, std::set<int>& S, int depth = -1) { // optimization: just use 1 layer propogate now
+    void subset(int n, std::set<int>& S, int depth = -1) {
         if (depth == -1) {
             depth = 32;
         }
@@ -305,9 +311,17 @@ private:
                 return nextNode;
             }
         }
+        NodeIndex idx;
+        while (!trace.empty()) {
+            idx = trace.top();
+            if (NodeSet.at(idx).isVisited && !NodeSet.at(idx).isCandidateMaxNonDep && !NodeSet.at(idx).isCandidateMinDep) {
+                trace.pop();
+            } else {
+                break;
+            }
+        }
         if (trace.empty())
             return -1;
-        NodeIndex idx = trace.top();
         trace.pop();
         return idx;
     }
@@ -316,7 +330,7 @@ private:
         std::set<NodeIndex> seeds;
         std::set<NodeIndex> newSeeds;
         for (auto maxNonDep : maxNonDeps) {
-            NodeIndex complement = ((1 << ncol) - 1) & (~maxNonDep) & ~(tabu_for_unique_cols | BITMAP.at(current_rhs));
+            NodeIndex complement = (BITMAP.at(ncol)- 1) & (~maxNonDep) & ~(tabu_for_unique_cols | BITMAP.at(current_rhs));
             if (seeds.empty()) {
                 for (ColIndex i = 0; i < ncol; ++i) {
                     if (complement & BITMAP.at(i)) {
@@ -452,8 +466,8 @@ private:
     }
 
     inline void multiply_partitions(Partition& lhs, Partition& rhs, Partition& buf) {
+        buf.reserve(150);
         std::fill(T.begin(), T.end(), -1);
-        int cidx = 0;
         for (int cidx = 0; cidx < lhs.size(); ++cidx) {
             auto& p = lhs[cidx];
             for (int i = 0; i < p.size(); ++i) {
@@ -483,5 +497,4 @@ private:
             }
         }
     }
-
 };
