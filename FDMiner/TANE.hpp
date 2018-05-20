@@ -106,6 +106,7 @@ public:
   std::vector<std::pair<int, int>> FD;
 
   std::unordered_map<int, std::pair<int, int>> parents;
+  std::unordered_map<int, int> eX;
 
   Partition S; // serve as buffer for partition multiply
   Partition product; // buffer
@@ -263,10 +264,19 @@ public:
     if (!X) {
       return false;
     }
-    if (compute_eX(X) == compute_eX(bigX)) {
+    if (get_eX(X) == get_eX(bigX)) {
       return true;
     }
     return false;
+  }
+
+  int get_eX(int X) {
+    if (eX.find(X) != eX.end()) {
+      return eX[X];
+    }
+    int tmp = compute_eX(X);
+    eX[X] = tmp;
+    return tmp;
   }
 
   int compute_eX(int X) {
