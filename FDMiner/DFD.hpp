@@ -13,6 +13,7 @@
 #include "reader.hpp"
 
 #define PROPOGATE
+#define PROPOGATELAYER 3
 //#define RANDOM
 
 typedef int NodeIndex;
@@ -61,7 +62,7 @@ public:
             if (set_part_map[BITMAP.at(i)].empty()) {
                 for (int j = 0; j < ncol; ++j) {
                     if (j != i) {
-                        FD.push_back(std::vector<int>({ i + 1, j + 1 }));
+                        FD.emplace_back(std::vector<int>({ i + 1, j + 1 }));
                     }
                 }
                 tabu_for_unique_cols |= BITMAP.at(i);
@@ -76,7 +77,7 @@ public:
                 auto fd = getColIndexVector(j);
                 for (auto& x : fd) x += 1;
                 fd.push_back(i + 1);
-                FD.push_back(fd);
+                FD.emplace_back(fd);
             }
             std::fill(NodeSet.begin(), NodeSet.end(), Node());
             minDeps.clear();
@@ -112,9 +113,14 @@ private:
     std::vector<NodeIndex> maxNonDeps;
     std::stack<NodeIndex> trace;
 
-    using Partition = std::unordered_map<int, std::vector<int>>;
+    using Partition = std::vector<std::vector<int>>;
     std::vector<int> T;
+    std::unordered_map<int, int> C;
+    std::vector<int> L;
     std::unordered_map<int, Partition> set_part_map;
+    std::unordered_map<int, std::pair<int, int>> parents;
+    std::unordered_map<int, int> eX;
+    Partition S;
 
     int getRandom(std::set<int>& S) {
         int idx = rand() % S.size(); // not equal prob but acceptable
@@ -343,14 +349,14 @@ private:
             std::set<NodeIndex> S;
             subset(nodeID, S, 1);
             int childNodeID = -1;
-            for (auto s : S) {
-                if (set_part_map.find(s) != set_part_map.end()) {
-                    childNodeID = s;
+            for (auto s = S.begin(); s != S.end(); ++s) {
+                if (set_part_map.find(*s) != set_part_map.end()) {
+                    childNodeID = *s;
                     break;
                 }
             }
             if (childNodeID != -1)
-                set_part_map[nodeID] = std::move(multiply_partitions(set_part_map[childNodeID], set_part_map[~childNodeID & nodeID]));
+                multiply_partitions(set_part_map[childNodeID], set_part_map[~childNodeID & nodeID], set_part_map[nodeID]);
             else {
                 auto lhs = getColIndexVector(nodeID);
                 auto e = BITMAP.at(lhs.back());
@@ -358,22 +364,21 @@ private:
                 for (auto l : lhs) {
                     auto x = BITMAP.at(l);
                     if (set_part_map.find(e | x) == set_part_map.end()) {
-                        set_part_map[e | x] = std::move(multiply_partitions(set_part_map[e], set_part_map[x]));
+                        multiply_partitions(set_part_map[e], set_part_map[x], set_part_map[e | x]);
                     }
                     e = e | x;
                 }
-                assert(e == nodeID);
             }
         }
         if (set_part_map.find(nodeID | BITMAP.at(current_rhs)) == set_part_map.end()) {
-            set_part_map[nodeID | BITMAP.at(current_rhs)] = std::move(multiply_partitions(set_part_map.at(nodeID), set_part_map.at(BITMAP.at(current_rhs))));
+             multiply_partitions(set_part_map.at(nodeID), set_part_map.at(BITMAP.at(current_rhs)), set_part_map[nodeID | BITMAP.at(current_rhs)]);
         }
         bool isFD = set_part_map[nodeID].size() == set_part_map[nodeID | BITMAP.at(current_rhs)].size();
         
 #ifdef PROPOGATE
         if (isFD) { // could do more?
             std::set<NodeIndex> S;
-            superset(nodeID, S, BITMAP.at(current_rhs) | tabu_for_unique_cols, (1 << ncol) - 1, 1);
+            superset(nodeID, S, BITMAP.at(current_rhs) | tabu_for_unique_cols, (1 << ncol) - 1, PROPOGATELAYER);
             for (int s : S) {
                 auto& node = NodeSet.at(s);
                 node.isVisited = true;
@@ -383,7 +388,7 @@ private:
             }
         } else {
             std::set<NodeIndex> S;
-            subset(nodeID, S, 1);
+            subset(nodeID, S, PROPOGATELAYER);
             for (int s : S) {
                 auto& node = NodeSet.at(s);
                 node.isVisited = true;
@@ -433,52 +438,57 @@ private:
         node.isCandidateMaxNonDep = !check_result;
     }
 
-    Partition one_column_partition(int col) {
-        Partition ret;
+    inline Partition one_column_partition(int col) {
+        Partition tmp;
         for (int ridx = 0; ridx < data.size(); ++ridx) {
-            auto& row = data[ridx];
-            auto p = ret.find(row[col]);
-            if (p == ret.end()) {
-                ret[row[col]] = std::vector<int>{ ridx };
-            } else {
-                (p->second).push_back(ridx);
+            auto cat = data[ridx][col];
+            if (cat >= tmp.size()) {
+                tmp.emplace_back();
             }
+            tmp[cat].push_back(ridx);
         }
-        for (auto iter = ret.begin(); iter != ret.end(); ) {
-            if (iter->second.size() == 1) {
-                iter = ret.erase(iter);
-            } else {
-                ++iter;
+        Partition ret;
+        for (int i = 0; i < tmp.size(); ++i) {
+            if (tmp[i].size() > 1) {
+                ret.emplace_back(tmp[i]);
             }
         }
         return ret;
     }
 
-    Partition multiply_partitions(Partition& lhs, Partition& rhs) {
-        Partition ret;
-        Partition S;
-        for (auto iter = T.begin(); iter != T.end(); ++iter) {
-            (*iter) = -1;
-        }
+    inline void multiply_partitions(Partition& lhs, Partition& rhs, Partition& buf) {
+        init_T();
+        int cidx = 0;
         for (auto p : lhs) {
-            for (auto ridx : p.second) {
-                T[ridx] = p.first;
+            for (auto ridx : p) {
+                T[ridx] = cidx;
             }
-            S[p.first] = std::vector<int>();
+            ++cidx;
+            if (S.size() < cidx) {
+                S.emplace_back();
+            }
         }
         for (auto p : rhs) {
-            for (auto ridx : p.second) {
+            for (auto ridx : p) {
                 if (T[ridx] != -1) {
                     S[T[ridx]].push_back(ridx);
                 }
             }
-            for (auto ridx : p.second) {
-                if (S[T[ridx]].size() > 1) {
-                    ret[ret.size()] = std::move(S[T[ridx]]);
+            for (auto ridx : p) {
+                if (T[ridx] != -1) {
+                    if (S[T[ridx]].size() > 1) {
+                        buf.emplace_back();
+                        buf[buf.size() - 1] = S[T[ridx]];
+                    }
+                    S[T[ridx]].clear();
                 }
-                S[T[ridx]].clear();
             }
         }
-        return ret;
+    }
+
+    inline void init_T() {
+        for (auto iter = T.begin(); iter != T.end(); ++iter) {
+            (*iter) = -1;
+        }
     }
 };
