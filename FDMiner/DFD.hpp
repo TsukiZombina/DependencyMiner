@@ -352,36 +352,38 @@ private:
             seeds.erase(dep);
         return seeds;
     }
-
+    void build_set(NodeIndex nodeID) {
+        if (set_part_map.find(nodeID) != set_part_map.end()) return;
+        std::set<NodeIndex> S;
+        subset(nodeID, S, 1);
+        int childNodeID[2] = { -1, -1 };
+        int idx = 0;
+        for (auto s = S.begin(); s != S.end(); ++s) {
+            if (set_part_map.find(*s) != set_part_map.end()) {
+                childNodeID[idx++] = *s;
+                if (idx == 2) break;
+            }
+        }
+        if (idx == 2) {
+            multiply_partitions(set_part_map[childNodeID[0]], set_part_map[childNodeID[1]], set_part_map[nodeID]);
+        } else if (idx == 1) {
+            multiply_partitions(set_part_map[nodeID & ~childNodeID[0]], set_part_map[childNodeID[0]], set_part_map[nodeID]);
+        } else {
+            auto lhs = getColIndexVector(nodeID);
+            auto e = BITMAP.at(lhs.back());
+            lhs.erase(lhs.end() - 1);
+            for (auto l : lhs) {
+                auto x = BITMAP.at(l);
+                if (set_part_map.find(e | x) == set_part_map.end()) {
+                    multiply_partitions(set_part_map[e], set_part_map[x], set_part_map[e | x]);
+                }
+                e = e | x;
+            }
+        }
+    }
     bool checkFD(NodeIndex nodeID) {
-        if (set_part_map.find(nodeID) == set_part_map.end()) {
-            std::set<NodeIndex> S;
-            subset(nodeID, S, 1);
-            int childNodeID = -1;
-            for (auto s = S.begin(); s != S.end(); ++s) {
-                if (set_part_map.find(*s) != set_part_map.end()) {
-                    childNodeID = *s;
-                    break;
-                }
-            }
-            if (childNodeID != -1)
-                multiply_partitions(set_part_map[childNodeID], set_part_map[~childNodeID & nodeID], set_part_map[nodeID]);
-            else {
-                auto lhs = getColIndexVector(nodeID);
-                auto e = BITMAP.at(lhs.back());
-                lhs.erase(lhs.end() - 1);
-                for (auto l : lhs) {
-                    auto x = BITMAP.at(l);
-                    if (set_part_map.find(e | x) == set_part_map.end()) {
-                        multiply_partitions(set_part_map[e], set_part_map[x], set_part_map[e | x]);
-                    }
-                    e = e | x;
-                }
-            }
-        }
-        if (set_part_map.find(nodeID | BITMAP.at(current_rhs)) == set_part_map.end()) {
-             multiply_partitions(set_part_map.at(nodeID), set_part_map.at(BITMAP.at(current_rhs)), set_part_map[nodeID | BITMAP.at(current_rhs)]);
-        }
+        build_set(nodeID);
+        build_set(nodeID | BITMAP.at(current_rhs));
         bool isFD = set_part_map[nodeID].size() == set_part_map[nodeID | BITMAP.at(current_rhs)].size();
         
 #ifdef PROPOGATE
