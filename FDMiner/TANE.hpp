@@ -324,16 +324,38 @@ public:
   }
 
   void output(std::ostream& ofs) {
+    std::vector<std::vector<int>> tmp;
+    tmp.reserve(FD.size());
+
     for (int i = 0; i < FD.size(); ++i) {
       auto& item =FD[i];
       auto lhs = decode_to_vector(item.first);
       auto rhs = item.second;
-      for (auto col: lhs) {
-          if (col != rhs) {
-              ofs << col + 1 << " ";
-          }
+      lhs.push_back(rhs);
+      tmp.emplace_back(std::move(lhs));
+    }
+
+    std::sort(tmp.begin(), tmp.end(), [](const std::vector<int> &lhs, const std::vector<int> &rhs) -> bool {
+      auto iter1 = lhs.begin();
+      auto iter2 = rhs.begin();
+      while (iter1 != lhs.end() && iter2 != rhs.end())
+      {
+        if (*iter1 < *iter2)
+          return true;
+        if (*iter1 > *iter2)
+          return false;
+        ++iter1;
+        ++iter2;
       }
-      ofs << "-> " << rhs + 1 << std::endl;
+      return (iter2 != rhs.end());
+    });
+
+    for (int i = 0; i < tmp.size(); ++i) {
+      auto& dep = tmp[i];
+      for (int j = 0; j < dep.size() - 1; ++j) {
+        ofs << dep[j] + 1 << " ";
+      }
+      ofs << "-> " << dep[dep.size() - 1] + 1<< "\n";
     }
   }
 };

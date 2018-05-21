@@ -1,11 +1,18 @@
 path_a = '../result.txt'
 path_b = '../TANE_out.txt'
 
-with open(path_a) as f:
-  lines_a = set(f.read().splitlines())
+ordered = True
 
-with open(path_b) as f:
-  lines_b = set(f.read().splitlines())
+if ordered:
+  with open(path_a) as f:
+    lines_a = f.read().splitlines()
+  with open(path_b) as f:
+    lines_b = f.read().splitlines()
+else:
+  with open(path_a) as f:
+    lines_a = set(f.read().splitlines())
+  with open(path_b) as f:
+    lines_b = set(f.read().splitlines())
 
 if lines_a == lines_b:
   print('Okay')

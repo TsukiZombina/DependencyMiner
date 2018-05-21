@@ -76,7 +76,7 @@ void test_DFD() {
 }
 
 int main() {
-    test_TANE();
-    // run_TANE();
+    // test_TANE();
+    run_TANE();
     return 0;
 }
