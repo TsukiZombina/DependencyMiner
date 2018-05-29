@@ -36,7 +36,7 @@ void run_DFD(bool test = false) {
     } else {
         DFD dfd("./data.txt");
         dfd.extraction();
-        std::ofstream os("./result.txt");
+        std::ofstream os("./DFD_out.txt");
         dfd.output(os);
     }
 }
