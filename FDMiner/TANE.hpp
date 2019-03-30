@@ -1,4 +1,7 @@
-#pragma once
+#ifndef TANE_H
+#define TANE_H
+
+#include <cmath>
 #include <string>
 #include <iostream>
 #include <fstream>
@@ -359,3 +362,5 @@ public:
     }
   }
 };
+
+#endif  // TANE_H

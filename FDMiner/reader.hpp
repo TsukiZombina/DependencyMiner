@@ -1,7 +1,10 @@
-#pragma once
+#ifndef READER_H
+#define READER_H
+
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <vector>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -84,3 +87,5 @@ public:
     return flag;
   }
 };
+
+#endif // READER_H

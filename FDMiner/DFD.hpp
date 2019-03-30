@@ -1,4 +1,6 @@
-#pragma once
+#ifndef DFD_H
+#define DFD_H
+
 #include <string>
 #include <vector>
 #include <stack>
@@ -500,3 +502,5 @@ private:
         }
     }
 };
+
+#endif // DFD_H
