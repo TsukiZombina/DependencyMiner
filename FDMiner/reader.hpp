@@ -39,7 +39,6 @@ public:
     while(std::getline(columns, attribute, ','))
     {
         attributes.push_back(attribute);
-        std::cout << attribute << std::endl;
     }
 
     for (std::string line; std::getline(in, line); ) {

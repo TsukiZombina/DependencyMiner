@@ -380,7 +380,6 @@ public:
     depStream.close();
 
     std::sort(dependencies.begin(), dependencies.end(), [](auto& left, auto& right) {
-                //return left.second < right.second;
                 if(left.second < right.second)
                 {
                     return true;
