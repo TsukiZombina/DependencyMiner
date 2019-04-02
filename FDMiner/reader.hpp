@@ -2,6 +2,7 @@
 #define READER_H
 
 #include <string>
+#include <sstream>
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -13,6 +14,8 @@ public:
   std::vector<std::vector<int>> data;
   // value_map[k] maps values of the kth column to int
   std::vector<std::unordered_map<std::string, int>> value_map;
+  // vector containing all the column names
+  std::vector<std::string> attributes;
 
   int nrow;
   int ncol;
@@ -25,6 +28,20 @@ public:
 
   void read_data(std::string path) {
     std::ifstream in(path);
+
+    // handle column names
+    std::string line;
+    std::getline(in, line);
+
+    std::stringstream columns(line);
+    std::string attribute;
+
+    while(std::getline(columns, attribute, ','))
+    {
+        attributes.push_back(attribute);
+        std::cout << attribute << std::endl;
+    }
+
     for (std::string line; std::getline(in, line); ) {
       // std::cout << "Processing line: " << line << std::endl;
       data.emplace_back();

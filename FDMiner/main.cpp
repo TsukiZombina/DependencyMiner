@@ -8,7 +8,7 @@
 #include <unordered_map>
 
 double run_TANE() {
-    std::string path = "example.csv";
+    std::string path = "Delitos_cleaned.csv";
     TANE t;
 
     clock_t start = clock();

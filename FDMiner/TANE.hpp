@@ -103,6 +103,8 @@ public:
   std::unordered_map<int, std::pair<int, int>> parents;
   std::unordered_map<int, int> eX;
 
+  std::vector<std::string> attributes;
+
   Partition S;
 
   int nrow;
@@ -118,6 +120,8 @@ public:
     ncol = r.ncol;
 
     T.resize(nrow);
+
+    attributes = std::move(r.attributes);
 
     full_set = 0;
     for (int i = 0; i < ncol; ++i) {
@@ -353,13 +357,54 @@ public:
       return (iter2 != rhs.end());
     });
 
+    std::ofstream depStream("dependencies_unsorted.txt");
+    std::vector<std::pair<std::string, std::string>> dependencies;
+
     for (int i = 0; i < tmp.size(); ++i) {
       auto& dep = tmp[i];
+
+      std::string leftHandSide = "";
+
       for (int j = 0; j < dep.size() - 1; ++j) {
         ofs << dep[j] + 1 << " ";
+        depStream << attributes[dep[j]] << " ";
+
+        leftHandSide += attributes[dep[j]] + " ";
       }
       ofs << "-> " << dep[dep.size() - 1] + 1<< "\n";
+      depStream << "-> " << attributes[dep[dep.size() - 1]] << "\n";
+
+      dependencies.push_back(std::make_pair(leftHandSide, attributes[dep[dep.size() - 1]]));
     }
+
+    depStream.close();
+
+    std::sort(dependencies.begin(), dependencies.end(), [](auto& left, auto& right) {
+                //return left.second < right.second;
+                if(left.second < right.second)
+                {
+                    return true;
+                }
+
+                if(left.second == right.second)
+                {
+                    if(left.first < right.first)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+              });
+
+    depStream.open("dependencies_sorted.txt");
+
+    for(const auto& dep: dependencies)
+    {
+        depStream << dep.first << " -> " << dep.second << std::endl;
+    }
+
+    depStream.close();
   }
 };
 
