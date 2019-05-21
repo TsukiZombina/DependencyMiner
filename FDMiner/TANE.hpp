@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <string>
+#include <vector>
 #include <iostream>
 #include <fstream>
 #include <unordered_map>
@@ -129,6 +130,26 @@ public:
     }
 
     set_part_map.reserve(1500);
+  }
+
+  inline void read_data(std::string& path, bool useSimilarity,
+                        const std::unordered_map<int, std::string>& indices)
+  {
+      auto r = Reader(path, useSimilarity, indices);
+      data = std::move(r.data);
+      nrow = r.nrow;
+      ncol = r.ncol;
+
+      T.resize(nrow);
+
+      attributes = std::move(r.attributes);
+
+      full_set = 0;
+      for (int i = 0; i < ncol; ++i) {
+          full_set = (full_set << 1) + 1;
+      }
+
+      set_part_map.reserve(1500);
   }
 
   inline void generate_next_level() {

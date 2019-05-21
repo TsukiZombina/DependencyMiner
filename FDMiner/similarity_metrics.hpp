@@ -1,6 +1,5 @@
 #include <iostream>
-
-size_t uiLevenshteinDistance(const std::string &s1, const std::string &s2);
+#include <regex>
 
 size_t uiLevenshteinDistance(const std::string &s1, const std::string &s2)
 {
@@ -42,4 +41,23 @@ size_t uiLevenshteinDistance(const std::string &s1, const std::string &s2)
     delete [] costs;
 
     return result;
+}
+
+unsigned int getTimeSpan(const std::string& dateStr1, const std::string& dateStr2)
+{
+    // Parse strings
+    std::regex re("[/]+");
+    std::sregex_token_iterator it1(dateStr1.begin(), dateStr1.end(), re, -1);
+    std::sregex_token_iterator it2(dateStr2.begin(), dateStr2.end(), re, -1);
+    std::sregex_token_iterator reg_end;
+
+    int date1[3] = {0, 0, 0};
+    int date2[3] = {0, 0, 0};
+
+    for (int i = 0; it1 != reg_end && it2 != reg_end; ++it1, ++it2, ++i) {
+        date1[i] = std::stoi(it1->str());
+        date2[i] = std::stoi(it2->str());
+    }
+
+    return 0;
 }
