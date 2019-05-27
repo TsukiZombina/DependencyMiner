@@ -160,6 +160,11 @@ public:
               else if(metric == "d")
               {
                   int d = getTimeSpan(v.first, value);
+
+                  if(d < 2)
+                  {
+                      return v.second;
+                  }
               }
           }
           else
@@ -171,9 +176,7 @@ public:
                   return v.second;
               }
           }
-/*          std::regex regExInt("(\\+|-)?[[:d:]]+");*/
           //std::regex regExReal("((\\+|-)?[[:digit:]]+)(\\.(([[:digit:]]+)?))?((e|E)((\\+|-)?)[[:digit:]]+)?");
-          //std::regex regExDate("([[:d:]]{1}|[[:d:]]{2})/([[:d:]]{1}|[[:d:]]{2})/[[:d:]]{4}");
       }
 
       int code = value_map[col_idx].size();
