@@ -131,7 +131,7 @@ int main(int argc, char** argv) {
             // Make an unordered_map of <index, metric> pairs
             std::unordered_map<int, std::string> indices;
 
-            for(int i = 0; i < attributes.size(); i++)
+            for(unsigned int i = 0; i < attributes.size(); i++)
             {
                 indices[std::stoi(attributes[i])] = metrics[i];
             }

@@ -1,9 +1,16 @@
+#include <cstdlib>
+#include <vector>
 #include <iostream>
 #include <regex>
 
 struct Date
 {
     int d, m, y;
+};
+
+struct Time
+{
+    unsigned int h, m;
 };
 
 // This function counts number of leap years before the given date
@@ -24,7 +31,7 @@ int countLeapYears(Date d)
 }
 
 // This function returns the number of days between two given dates
-int getDifference(Date dt1, Date dt2)
+long getDifference(const Date& dt1, const Date& dt2)
 {
     // To store the number of days in each month
     const int monthDays[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
@@ -54,33 +61,30 @@ int getDifference(Date dt1, Date dt2)
     n2 += countLeapYears(dt2);
 
     // return difference between two counts
-    return n2 - n1;
+    return abs(n2 - n1);
 }
 
-unsigned int getTimeSpan(const std::string& dateStr1, const std::string& dateStr2)
+long getDifference(const Time& t1, const Time& t2)
 {
-    // Parse strings
-    std::regex re("[/]+");
-    std::sregex_token_iterator it1(dateStr1.begin(), dateStr1.end(), re, -1);
-    std::sregex_token_iterator it2(dateStr2.begin(), dateStr2.end(), re, -1);
-    std::sregex_token_iterator reg_end;
+    long m1 = t1.h * 60 + t1.m;
+    long m2 = t2.h * 60 + t2.m;
 
-    int date1[3] = {0, 0, 0};
-    int date2[3] = {0, 0, 0};
+    return abs(m1 - m2);
+}
 
-    for (int i = 0; it1 != reg_end && it2 != reg_end; ++it1, ++it2, ++i)
+float getDifference(const std::vector<float>& x, const std::vector<float>& y)
+{
+    float sum = 0.0f;
+
+    for(int i = 0; i < x.size(); i++)
     {
-        date1[i] = std::stoi(it1->str());
-        date2[i] = std::stoi(it2->str());
+        sum += ((x[i] - y[i]) * (x[i] - y[i]));
     }
 
-    Date d1 = { date1[0], date1[1], date1[2] };
-    Date d2 = { date2[0], date2[1], date2[2] };
-
-    return getDifference(d1, d2);
+    return sqrtf(sum);
 }
 
-size_t uiLevenshteinDistance(const std::string &s1, const std::string &s2)
+size_t getDifference(const std::string &s1, const std::string &s2)
 {
     const size_t m(s1.size());
     const size_t n(s2.size());

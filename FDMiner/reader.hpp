@@ -159,9 +159,78 @@ public:
               }
               else if(metric == "d")
               {
-                  int d = getTimeSpan(v.first, value);
+                  // Parse date strings
+                  std::regex re("[/]+");
+                  std::sregex_token_iterator it1(v.first.begin(), v.first.end(), re, -1);
+                  std::sregex_token_iterator it2(value.begin(), value.end(), re, -1);
+                  std::sregex_token_iterator reg_end;
+
+                  int d1[3] = { 0, 0, 0 };
+                  int d2[3] = { 0, 0, 0 };
+
+                  for(int i = 0; it1 != reg_end && it2 != reg_end; ++it1, ++it2, ++i)
+                  {
+                      d1[i] = std::stoi(it1->str());
+                      d2[i] = std::stoi(it2->str());
+                  }
+
+                  Date date1 = { d1[0], d1[1], d1[2] };
+                  Date date2 = { d2[0], d2[1], d2[2] };
+
+                  unsigned int d = getDifference(date1, date2);
 
                   if(d < 2)
+                  {
+                      return v.second;
+                  }
+              }
+              else if(metric == "t")
+              {
+                  // Parse time strings
+                  std::regex re("[:]");
+                  std::sregex_token_iterator it1(v.first.begin(), v.first.end(), re, -1);
+                  std::sregex_token_iterator it2(value.begin(), value.end(), re, -1);
+                  std::sregex_token_iterator reg_end;
+
+                  unsigned t1[2] = { 0, 0 };
+                  unsigned t2[2] = { 0, 0 };
+
+                  for(int i = 0; it1 != reg_end && it2 != reg_end; ++it1, ++it2, ++i)
+                  {
+                      t1[i] = std::stoi(it1->str());
+                      t2[i] = std::stoi(it2->str());
+                  }
+
+                  Time time1 = { t1[0], t1[1] };
+                  Time time2 = { t2[0], t2[1] };
+
+                  long d = getDifference(time1, time2);
+
+                  if(d < 5)
+                  {
+                      return v.second;
+                  }
+              }
+              else if(metric == "m")
+              {
+                  // Parse time strings
+                  std::regex re("[ ]+");
+                  std::sregex_token_iterator it1(v.first.begin(), v.first.end(), re, -1);
+                  std::sregex_token_iterator it2(value.begin(), value.end(), re, -1);
+                  std::sregex_token_iterator reg_end;
+
+                  std::vector<float> x;
+                  std::vector<float> y;
+
+                  for(; it1 != reg_end && it2 != reg_end; ++it1, ++it2)
+                  {
+                      x.push_back(std::stof(it1->str()));
+                      y.push_back(std::stof(it2->str()));
+                  }
+
+                  float d = getDifference(x, y);
+
+                  if(d < 1.4142f)
                   {
                       return v.second;
                   }
@@ -169,7 +238,7 @@ public:
           }
           else
           {
-              size_t d = uiLevenshteinDistance(v.first, value);
+              size_t d = getDifference(v.first, value);
 
               if(d < 1)
               {
