@@ -10,15 +10,15 @@
 #include <vector>
 #include <unordered_map>
 
-double run_TANE(std::string& path) {
+double run_TANE(std::string& path, std::string& output) {
     TANE t;
 
     clock_t start = clock();
 
     t.read_data(path);
     t.run();
-    std::ofstream ofs("./TANE_out.txt");
-    t.output(ofs);
+    std::ofstream ofs(output + ".txt");
+    t.output(ofs, output);
     ofs.close();
 
     clock_t end = clock();
@@ -26,7 +26,7 @@ double run_TANE(std::string& path) {
     return ((double)(end - start) / CLOCKS_PER_SEC);
 }
 
-double run_TANE(std::string& path, bool useSimilarity,
+double run_TANE(std::string& path, std::string& output, bool useSimilarity,
                 const std::unordered_map<int, std::pair<std::string, std::string>>& indices) {
     TANE t;
 
@@ -34,8 +34,8 @@ double run_TANE(std::string& path, bool useSimilarity,
 
     t.read_data(path, useSimilarity, indices);
     t.run();
-    std::ofstream ofs("./TANE_out.txt");
-    t.output(ofs);
+    std::ofstream ofs(output);
+    t.output(ofs, output);
     ofs.close();
 
     clock_t end = clock();
@@ -60,13 +60,13 @@ void run_DFD(bool test = false) {
     }
 }
 
-void test_TANE(std::string& path) {
+void test_TANE(std::string& path, std::string& output) {
     double total = 0;
     int loop = 10;
 
-    run_TANE(path); // warm up
+    run_TANE(path, output); // warm up
     for (int i = 0; i < loop; ++i) {
-        double elapse = run_TANE(path);
+        double elapse = run_TANE(path, output);
         std::cout << "Time elapsed: " << elapse << std::endl;
         total += elapse;
     }
@@ -110,6 +110,7 @@ int main(int argc, char** argv) {
     cxxopts::Options options("FDMiner", "An implementation of the TANE algorithm");
     options.add_options()
         ("f, filename",    "Input file",             cxxopts::value<std::string>())
+        ("o, output",      "Output file",            cxxopts::value<std::string>()->default_value("TANE_out.txt"))
         ("s, similarity",  "Use similarity metrics", cxxopts::value<bool>()->default_value("false"))
         ("a, attributes",  "Attributes indices",     cxxopts::value<std::string>()->default_value(""))
         ("m, metrics",     "Similarity metrics",     cxxopts::value<std::string>()->default_value(""))
@@ -118,6 +119,7 @@ int main(int argc, char** argv) {
     auto args = options.parse(argc, argv);
 
     std::string filename = args["filename"].as<std::string>();
+    std::string output   = args["output"].as<std::string>();
     bool useSimilarity   = args["similarity"].as<bool>();
     std::string attArg   = args["attributes"].as<std::string>();
     std::string metArg   = args["metrics"].as<std::string>();
@@ -140,13 +142,13 @@ int main(int argc, char** argv) {
                 indices[std::stoi(attributes[i])] = mv;
             }
 
-            run_TANE(filename, useSimilarity, indices);
+            run_TANE(filename, output, useSimilarity, indices);
         }
     }
     else
     {
         // test_TANE();
-        run_TANE(filename);
+        run_TANE(filename, output);
     }
 
     return 0;

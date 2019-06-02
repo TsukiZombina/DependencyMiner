@@ -351,7 +351,7 @@ public:
     }
   }
 
-  void output(std::ostream& ofs) {
+  void output(std::ostream& ofs, std::string& output) {
     std::vector<std::vector<int>> tmp;
     tmp.reserve(FD.size());
 
@@ -378,7 +378,7 @@ public:
       return (iter2 != rhs.end());
     });
 
-    std::ofstream depStream("dependencies_unsorted.txt");
+    std::ofstream depStream(output + "_unsorted.txt");
     std::vector<std::pair<std::string, std::string>> dependencies;
 
     for (int i = 0; i < tmp.size(); ++i) {
@@ -417,7 +417,7 @@ public:
                 return false;
               });
 
-    depStream.open("dependencies_sorted.txt");
+    depStream.open(output + "_sorted.txt");
 
     for(const auto& dep: dependencies)
     {
