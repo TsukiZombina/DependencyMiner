@@ -25,7 +25,7 @@ public:
   unsigned int ncol;
 
   bool _useSimilarity = { false };
-  std::unordered_map<int, std::string> _indices;
+  std::unordered_map<int, std::pair<std::string, std::string>> _indices;
 
   Reader(std::string& path) {
     // std::cout << "Reading data: " << path << std::endl;
@@ -34,7 +34,7 @@ public:
   }
 
   Reader(std::string& path, bool useSimilarity,
-         const std::unordered_map<int, std::string>& indices) :
+         const std::unordered_map<int, std::pair<std::string, std::string>>& indices) :
       _useSimilarity(useSimilarity),
       _indices(indices)
   {
@@ -140,24 +140,9 @@ public:
       {
           if(_indices.count(col_idx) > 0)
           {
-              std::string metric = _indices[col_idx];
+              std::string metric = _indices[col_idx].first;
 
-              if(metric == "i")
-              {
-                  std::regex regExInt("(\\+|-)?[[:d:]]+");
-
-                  if(std::regex_match(v.first, regExInt) &&
-                     std::regex_match(value, regExInt))
-                  {
-                      int d = std::abs(std::stoi(v.first) - std::stof(value));
-
-                      if(d < 2)
-                      {
-                          return v.second;
-                      }
-                  }
-              }
-              else if(metric == "d")
+              if(metric == "d")
               {
                   // Parse date strings
                   std::regex re("[/]+");
@@ -178,8 +163,9 @@ public:
                   Date date2 = { d2[0], d2[1], d2[2] };
 
                   unsigned int d = getDifference(date1, date2);
+                  long threshold = std::stol(_indices[col_idx].second);
 
-                  if(d < 2)
+                  if(d < threshold)
                   {
                       return v.second;
                   }
@@ -205,15 +191,16 @@ public:
                   Time time2 = { t2[0], t2[1] };
 
                   long d = getDifference(time1, time2);
+                  long threshold = std::stol(_indices[col_idx].second);
 
-                  if(d < 5)
+                  if(d < threshold)
                   {
                       return v.second;
                   }
               }
-              else if(metric == "m")
+              else if(metric == "w")
               {
-                  // Parse time strings
+                  // Parse vector strings
                   std::regex re("[ ]+");
                   std::sregex_token_iterator it1(v.first.begin(), v.first.end(), re, -1);
                   std::sregex_token_iterator it2(value.begin(), value.end(), re, -1);
@@ -229,8 +216,19 @@ public:
                   }
 
                   float d = getDifference(x, y);
+                  float threshold = std::stof(_indices[col_idx].second);
 
-                  if(d < 1.4142f)
+                  if(d < threshold)
+                  {
+                      return v.second;
+                  }
+              }
+              else if(metric == "l")
+              {
+                  size_t d = getDifference(v.first, value);
+                  float threshold = std::stoi(_indices[col_idx].second);
+
+                  if(d < threshold)
                   {
                       return v.second;
                   }
@@ -238,14 +236,17 @@ public:
           }
           else
           {
-              size_t d = getDifference(v.first, value);
-
-              if(d < 1)
+              auto iter = value_map[col_idx].find(value);
+              if (iter != value_map[col_idx].end()) {
+                  return iter->second;
+              }
+              else
               {
-                  return v.second;
+                  int code = value_map[col_idx].size();
+                  value_map[col_idx][value] = code;
+                  return code;
               }
           }
-          //std::regex regExReal("((\\+|-)?[[:digit:]]+)(\\.(([[:digit:]]+)?))?((e|E)((\\+|-)?)[[:digit:]]+)?");
       }
 
       int code = value_map[col_idx].size();

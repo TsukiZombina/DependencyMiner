@@ -133,7 +133,7 @@ public:
   }
 
   inline void read_data(std::string& path, bool useSimilarity,
-                        const std::unordered_map<int, std::string>& indices)
+                        const std::unordered_map<int, std::pair<std::string, std::string>>& indices)
   {
       auto r = Reader(path, useSimilarity, indices);
       data = std::move(r.data);

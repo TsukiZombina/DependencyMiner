@@ -27,7 +27,7 @@ double run_TANE(std::string& path) {
 }
 
 double run_TANE(std::string& path, bool useSimilarity,
-                const std::unordered_map<int, std::string>& indices) {
+                const std::unordered_map<int, std::pair<std::string, std::string>>& indices) {
     TANE t;
 
     clock_t start = clock();
@@ -112,7 +112,8 @@ int main(int argc, char** argv) {
         ("f, filename",    "Input file",             cxxopts::value<std::string>())
         ("s, similarity",  "Use similarity metrics", cxxopts::value<bool>()->default_value("false"))
         ("a, attributes",  "Attributes indices",     cxxopts::value<std::string>()->default_value(""))
-        ("m, metrics",     "Similarity metrics",     cxxopts::value<std::string>()->default_value(""));
+        ("m, metrics",     "Similarity metrics",     cxxopts::value<std::string>()->default_value(""))
+        ("v, values", "Values", cxxopts::value<std::string>()->default_value(""));
 
     auto args = options.parse(argc, argv);
 
@@ -120,20 +121,23 @@ int main(int argc, char** argv) {
     bool useSimilarity   = args["similarity"].as<bool>();
     std::string attArg   = args["attributes"].as<std::string>();
     std::string metArg   = args["metrics"].as<std::string>();
+    std::string valArg   = args["values"].as<std::string>();
 
     if(useSimilarity)
     {
         std::vector<std::string> attributes = split(attArg, ',');
         std::vector<std::string> metrics    = split(metArg, ',');
+        std::vector<std::string> values     = split(valArg, ',');
 
         if(attributes.size() == metrics.size())
         {
             // Make an unordered_map of <index, metric> pairs
-            std::unordered_map<int, std::string> indices;
+            std::unordered_map<int, std::pair<std::string, std::string>> indices;
 
             for(unsigned int i = 0; i < attributes.size(); i++)
             {
-                indices[std::stoi(attributes[i])] = metrics[i];
+                std::pair<std::string, std::string> mv = std::make_pair(metrics[i], values[i]);
+                indices[std::stoi(attributes[i])] = mv;
             }
 
             run_TANE(filename, useSimilarity, indices);
