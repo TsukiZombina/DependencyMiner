@@ -19,10 +19,10 @@ for l in L:
     for w in W:
         for t in T:
             for d in D:
-                filename = prefix + "w=" + "{0:.3f}".format(w) + "_l=" + str(l)
-                subprocess.run(["../build/DepMinerTsuki.exe",
-                    "-f", "../test.csv",
-                    "-o", filename,
+                filename = prefix + "w=" + str(w) + "_l=" + str(l) + "_t=" + str(t) + "_d=" + str(d)
+                subprocess.run(["../build/DependencyMiner.exe",
+                    "-f", "../Delitos_cleaned.csv",
+                    "-o", "C:/Users/ammy_/Dropbox/Masters/Resultados/Similarity" + filename,
                     "-s", "1",
                     "-a", "0,1,2,3,4,5,6,7,8,9,10,11,12,13",
                     "-m", "t,t,d,l,l,l,l,l,l,l,l,l,l,w",
