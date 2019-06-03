@@ -22,7 +22,7 @@ for l in L:
                 filename = prefix + "w=" + str(w) + "_l=" + str(l) + "_t=" + str(t) + "_d=" + str(d)
                 subprocess.run(["../build/DependencyMiner.exe",
                     "-f", "../Delitos_cleaned.csv",
-                    "-o", "C:/Users/ammy_/Dropbox/Masters/Resultados/Similarity" + filename,
+                    "-o", "../../../../Dropbox/Masters/Resultados/Similarity/" + filename,
                     "-s", "1",
                     "-a", "0,1,2,3,4,5,6,7,8,9,10,11,12,13",
                     "-m", "t,t,d,l,l,l,l,l,l,l,l,l,l,w",
