@@ -335,3 +335,9 @@ ASALocalRun/
 
 # MFractors (Xamarin productivity tool) working folder
 .mfractor/
+
+# Precompiled headers
+*.gch
+
+# Temporary files
+*.tmp
