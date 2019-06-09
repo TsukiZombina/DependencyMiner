@@ -5,7 +5,7 @@ prefix = "Sim_"
 
 L = np.array([1, 2, 3])
 
-T = np.array([10, 20, 30, 40, 50, 60])
+T = np.array([10, 20, 30, 60])
 
 D = np.array([1, 2, 7, 15, 30])
 

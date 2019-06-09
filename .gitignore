@@ -8,6 +8,7 @@
 *.diagsession
 !data.txt
 *.csv
+*.data
 
 # User-specific files
 *.suo

@@ -110,7 +110,7 @@ int main(int argc, char** argv) {
     cxxopts::Options options("FDMiner", "An implementation of the TANE algorithm");
     options.add_options()
         ("f, filename",    "Input file",             cxxopts::value<std::string>())
-        ("o, output",      "Output file",            cxxopts::value<std::string>()->default_value("TANE_out.txt"))
+        ("o, output",      "Output file",            cxxopts::value<std::string>()->default_value("TANE_out"))
         ("s, similarity",  "Use similarity metrics", cxxopts::value<bool>()->default_value("false"))
         ("a, attributes",  "Attributes indices",     cxxopts::value<std::string>()->default_value(""))
         ("m, metrics",     "Similarity metrics",     cxxopts::value<std::string>()->default_value(""))
