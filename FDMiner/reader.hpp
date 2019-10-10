@@ -1,5 +1,4 @@
-
-Data Cleaning: A Practical Perspective#ifndef READER_H
+#ifndef READER_H
 #define READER_H
 
 #include <string>
